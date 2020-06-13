@@ -1,10 +1,11 @@
 package auth
 
 type StoredUser struct {
-	UserId     string    `json:"userId,omitempty" bson:"userId,omitempty"`
-	UserName   string    `json:"userName,omitempty" bson:"userName,omitempty"`
-	Email      string    `json:"email,omitempty" bson:"email,omitempty"`
-	UserType   string    `json:"userType,omitempty" bson:"userType,omitempty"`
-	Roles      *[]string `json:"roles,omitempty" bson:"roles,omitempty" gorm:"column:roles"`
-	Privileges *[]string `json:"privileges,omitempty" bson:"privileges,omitempty" gorm:"column:privileges"`
+	UserId     string            `json:"userId,omitempty" gorm:"column:userid" bson:"_id,omitempty" dynamodbav:"userId,omitempty" firestore:"userId,omitempty"`
+	Username   string            `json:"username,omitempty" gorm:"column:username" bson:"username,omitempty" dynamodbav:"username,omitempty" firestore:"username,omitempty"`
+	Contact    string            `json:"contact,omitempty" gorm:"column:contact" bson:"contact,omitempty" dynamodbav:"contact,omitempty" firestore:"contact,omitempty"`
+	UserType   string            `json:"userType,omitempty" gorm:"column:usertype" bson:"userType,omitempty" dynamodbav:"userType,omitempty" firestore:"userType,omitempty"`
+	Roles      *[]string         `json:"roles,omitempty" gorm:"column:roles" bson:"roles,omitempty" dynamodbav:"roles,omitempty" firestore:"roles,omitempty"`
+	Privileges *[]string         `json:"privileges,omitempty" bson:"privileges,omitempty" gorm:"column:privileges" dynamodbav:"privileges,omitempty" firestore:"privileges,omitempty"`
+	Tokens     map[string]string `json:"tokens,omitempty" bson:"tokens,omitempty" gorm:"column:tokens" dynamodbav:"tokens,omitempty" firestore:"tokens,omitempty"`
 }

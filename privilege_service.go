@@ -1,5 +1,7 @@
 package auth
 
+import "context"
+
 type PrivilegeService interface {
-	GetPrivileges(id string) ([]Privilege, error)
+	GetPrivileges(ctx context.Context, id string) ([]Privilege, error)
 }
