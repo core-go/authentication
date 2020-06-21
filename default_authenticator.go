@@ -162,7 +162,7 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 		return result, nil
 	}
 
-	if user.IsTwoFactor {
+	if user.TwoFactors {
 		userId := user.UserId
 		if info.Step <= 0 {
 			var codeSend string

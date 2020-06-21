@@ -24,5 +24,5 @@ type UserInfo struct {
 	AccessDateTo        *time.Time `json:"accessDateTo,omitempty" gorm:"column:accessDateTo" bson:"accessDateTo,omitempty" dynamodbav:"accessDateTo,omitempty" firestore:"accessDateTo,omitempty"`
 	AccessTimeFrom      *time.Time `json:"accessTimeFrom,omitempty" gorm:"column:accesstimefrom" bson:"accessTimeFrom,omitempty" dynamodbav:"accessTimeFrom,omitempty" firestore:"accessTimeFrom,omitempty"`
 	AccessTimeTo        *time.Time `json:"accessTimeTo,omitempty" gorm:"column:accesstimeto" bson:"accessTimeTo,omitempty" dynamodbav:"accessTimeTo,omitempty" firestore:"accessTimeTo,omitempty"`
-	IsTwoFactor         bool       `json:"isTwoFactor,omitempty" gorm:"column:istwofactor" bson:"isTwoFactor,omitempty" dynamodbav:"isTwoFactor,omitempty" firestore:"isTwoFactor,omitempty"`
+	TwoFactors          bool       `json:"twoFactors,omitempty" gorm:"column:twoFactors" bson:"twoFactors,omitempty" dynamodbav:"twoFactors,omitempty" firestore:"twoFactors,omitempty"`
 }
