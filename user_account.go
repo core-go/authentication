@@ -11,6 +11,10 @@ type UserAccount struct {
 	Token               string       `json:"token,omitempty" gorm:"column:token" bson:"token,omitempty" dynamodbav:"token,omitempty" firestore:"token,omitempty"`
 	TokenExpiredTime    *time.Time   `json:"tokenExpiredTime,omitempty" gorm:"column:tokenexpiredtime" bson:"tokenExpiredTime,omitempty" dynamodbav:"tokenExpiredTime,omitempty" firestore:"tokenExpiredTime,omitempty"`
 	NewUser             bool         `json:"newUser,omitempty" gorm:"column:newuser" bson:"newUser,omitempty" dynamodbav:"newUser,omitempty" firestore:"newUser,omitempty"`
+	Language            string       `json:"language,omitempty" gorm:"column:language" bson:"language,omitempty" dynamodbav:"language,omitempty" firestore:"language,omitempty"`
+	Gender              string       `json:"gender,omitempty" gorm:"column:gender" bson:"gender,omitempty" dynamodbav:"gender,omitempty" firestore:"gender,omitempty"`
+	DateFormat          string       `json:"dateFormat,omitempty" gorm:"column:dateformat" bson:"dateFormat,omitempty" dynamodbav:"dateFormat,omitempty" firestore:"dateFormat,omitempty"`
+	ImageUrl            string       `json:"imageUrl,omitempty" gorm:"column:imageurl" bson:"imageUrl,omitempty" dynamodbav:"imageUrl,omitempty" firestore:"imageUrl,omitempty"`
 	UserType            string       `json:"userType,omitempty" gorm:"column:usertype" bson:"userType,omitempty" dynamodbav:"userType,omitempty" firestore:"userType,omitempty"`
 	Roles               *[]string    `json:"roles,omitempty" gorm:"column:roles" bson:"roles,omitempty" dynamodbav:"roles,omitempty" firestore:"roles,omitempty"`
 	Privileges          *[]Privilege `json:"privileges,omitempty" gorm:"column:privileges" bson:"privileges,omitempty" dynamodbav:"privileges,omitempty" firestore:"privileges,omitempty"`

@@ -25,4 +25,8 @@ type UserInfo struct {
 	AccessTimeFrom      *time.Time `json:"accessTimeFrom,omitempty" gorm:"column:accesstimefrom" bson:"accessTimeFrom,omitempty" dynamodbav:"accessTimeFrom,omitempty" firestore:"accessTimeFrom,omitempty"`
 	AccessTimeTo        *time.Time `json:"accessTimeTo,omitempty" gorm:"column:accesstimeto" bson:"accessTimeTo,omitempty" dynamodbav:"accessTimeTo,omitempty" firestore:"accessTimeTo,omitempty"`
 	TwoFactors          bool       `json:"twoFactors,omitempty" gorm:"column:twofactors" bson:"twoFactors,omitempty" dynamodbav:"twoFactors,omitempty" firestore:"twoFactors,omitempty"`
+	Language            string     `json:"language,omitempty" gorm:"column:language" bson:"language,omitempty" dynamodbav:"language,omitempty" firestore:"language,omitempty"`
+	Gender              string     `json:"gender,omitempty" gorm:"column:gender" bson:"gender,omitempty" dynamodbav:"gender,omitempty" firestore:"gender,omitempty"`
+	DateFormat          string     `json:"dateFormat,omitempty" gorm:"column:dateformat" bson:"dateFormat,omitempty" dynamodbav:"dateFormat,omitempty" firestore:"dateFormat,omitempty"`
+	ImageUrl            string     `json:"imageUrl,omitempty" gorm:"column:imageurl" bson:"imageUrl,omitempty" dynamodbav:"imageUrl,omitempty" firestore:"imageUrl,omitempty"`
 }
