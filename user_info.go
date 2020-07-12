@@ -28,5 +28,6 @@ type UserInfo struct {
 	Language            string     `json:"language,omitempty" gorm:"column:language" bson:"language,omitempty" dynamodbav:"language,omitempty" firestore:"language,omitempty"`
 	Gender              string     `json:"gender,omitempty" gorm:"column:gender" bson:"gender,omitempty" dynamodbav:"gender,omitempty" firestore:"gender,omitempty"`
 	DateFormat          string     `json:"dateFormat,omitempty" gorm:"column:dateformat" bson:"dateFormat,omitempty" dynamodbav:"dateFormat,omitempty" firestore:"dateFormat,omitempty"`
+	TimeFormat          string     `json:"timeFormat,omitempty" gorm:"column:timeformat" bson:"timeFormat,omitempty" dynamodbav:"timeFormat,omitempty" firestore:"timeFormat,omitempty"`
 	ImageUrl            string     `json:"imageUrl,omitempty" gorm:"column:imageurl" bson:"imageUrl,omitempty" dynamodbav:"imageUrl,omitempty" firestore:"imageUrl,omitempty"`
 }
