@@ -23,4 +23,10 @@ type SchemaConfig struct {
 	AccessDateTo   string `mapstructure:"access_date_to"`
 	AccessTimeFrom string `mapstructure:"access_time_from"`
 	AccessTimeTo   string `mapstructure:"access_time_to"`
+
+	Language   string `mapstructure:"language"`
+	Gender     string `mapstructure:"gender"`
+	DateFormat string `mapstructure:"date_format"`
+	TimeFormat string `mapstructure:"time_format"`
+	ImageUrl   string `mapstructure:"image_url"`
 }

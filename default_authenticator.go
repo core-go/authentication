@@ -262,5 +262,21 @@ func mapUserInfoToUserAccount(user UserInfo) UserAccount {
 	if len(user.Contact) > 0 {
 		account.Contact = user.Contact
 	}
+
+	if len(user.DateFormat) > 0 {
+		account.DateFormat = user.DateFormat
+	}
+	if len(user.TimeFormat) > 0 {
+		account.TimeFormat = user.TimeFormat
+	}
+	if len(user.Language) > 0 {
+		account.Language = user.Language
+	}
+	if len(user.ImageUrl) > 0 {
+		account.ImageUrl = user.ImageUrl
+	}
+	if len(user.Gender) > 0 {
+		account.Gender = user.Gender
+	}
 	return account
 }
