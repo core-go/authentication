@@ -5,22 +5,22 @@ import (
 	"net/http"
 )
 
-type AuthenticationController struct {
+type AuthenticationHandler struct {
 	Authenticator Authenticator
 	Decrypter     PasswordDecrypter
 	EncryptionKey string
 	LogService    AuthActivityLogService
 }
 
-func NewAuthenticationController(authenticationService Authenticator, decrypter PasswordDecrypter, encryptionKey string, logService AuthActivityLogService) *AuthenticationController {
-	return &AuthenticationController{authenticationService, decrypter, encryptionKey, logService}
+func NewAuthenticationHandler(authenticationService Authenticator, decrypter PasswordDecrypter, encryptionKey string, logService AuthActivityLogService) *AuthenticationHandler {
+	return &AuthenticationHandler{authenticationService, decrypter, encryptionKey, logService}
 }
 
-func NewDefaultAuthenticationController(authenticationService Authenticator) *AuthenticationController {
-	return &AuthenticationController{authenticationService, nil, "", nil}
+func NewDefaultAuthenticationHandler(authenticationService Authenticator) *AuthenticationHandler {
+	return &AuthenticationHandler{authenticationService, nil, "", nil}
 }
 
-func (c *AuthenticationController) Authenticate(w http.ResponseWriter, r *http.Request) {
+func (c *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Request) {
 	var user AuthInfo
 	er1 := json.NewDecoder(r.Body).Decode(&user)
 	if er1 != nil {
