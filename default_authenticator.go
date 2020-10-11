@@ -12,7 +12,7 @@ type DefaultAuthenticator struct {
 	UserInfoService    UserInfoService
 	BasicAuthenticator Authenticator
 	PasswordComparator ValueComparator
-	PrivilegeService   PrivilegeService
+	PrivilegesLoader   PrivilegesLoader
 	TokenGenerator     TokenGenerator
 	TokenConfig        TokenConfig
 	CodeExpires        int
@@ -21,7 +21,7 @@ type DefaultAuthenticator struct {
 	Generator          CodeGenerator
 }
 
-func NewBasicAuthenticator(basicAuthenticator Authenticator, userInfoService UserInfoService, privilegeService PrivilegeService, tokenGenerator TokenGenerator, tokenConfig TokenConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, codeSender CodeSender, generator CodeGenerator) *DefaultAuthenticator {
+func NewBasicAuthenticator(basicAuthenticator Authenticator, userInfoService UserInfoService, privilegesLoader PrivilegesLoader, tokenGenerator TokenGenerator, tokenConfig TokenConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, codeSender CodeSender, generator CodeGenerator) *DefaultAuthenticator {
 	if basicAuthenticator == nil {
 		panic(errors.New("basic authenticator cannot be nil"))
 	}
@@ -31,7 +31,7 @@ func NewBasicAuthenticator(basicAuthenticator Authenticator, userInfoService Use
 	service := &DefaultAuthenticator{
 		BasicAuthenticator: basicAuthenticator,
 		UserInfoService:    userInfoService,
-		PrivilegeService:   privilegeService,
+		PrivilegesLoader:   privilegesLoader,
 		TokenGenerator:     tokenGenerator,
 		TokenConfig:        tokenConfig,
 		CodeExpires:        codeExpires,
@@ -42,7 +42,7 @@ func NewBasicAuthenticator(basicAuthenticator Authenticator, userInfoService Use
 	return service
 }
 
-func NewDefaultAuthenticator(userInfoService UserInfoService, passwordComparator ValueComparator, privilegeService PrivilegeService, tokenGenerator TokenGenerator, tokenConfig TokenConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, codeSender CodeSender, generator CodeGenerator) *DefaultAuthenticator {
+func NewDefaultAuthenticator(userInfoService UserInfoService, passwordComparator ValueComparator, privilegeService PrivilegesLoader, tokenGenerator TokenGenerator, tokenConfig TokenConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, codeSender CodeSender, generator CodeGenerator) *DefaultAuthenticator {
 	if passwordComparator == nil {
 		panic(errors.New("password comparator cannot be nil"))
 	}
@@ -53,7 +53,7 @@ func NewDefaultAuthenticator(userInfoService UserInfoService, passwordComparator
 		BasicAuthenticator: nil,
 		UserInfoService:    userInfoService,
 		PasswordComparator: passwordComparator,
-		PrivilegeService:   privilegeService,
+		PrivilegesLoader:   privilegeService,
 		TokenGenerator:     tokenGenerator,
 		TokenConfig:        tokenConfig,
 		CodeExpires:        codeExpires,
@@ -117,7 +117,7 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 			return result, er2
 		}
 		if !validPassword {
-			er3 := s.UserInfoService.HandleWrongPassword(ctx, *user)
+			er3 := s.UserInfoService.Fail(ctx, *user)
 			if er3 != nil {
 				return result, er3
 			}
@@ -220,15 +220,15 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 	account := mapUserInfoToUserAccount(*user)
 	account.Token = token
 	account.TokenExpiredTime = &tokenExpiredTime
-	if s.PrivilegeService != nil {
-		privileges, er5 := s.PrivilegeService.GetPrivileges(ctx, user.UserId)
+	if s.PrivilegesLoader != nil {
+		privileges, er5 := s.PrivilegesLoader.Load(ctx, user.UserId)
 		if er5 != nil {
 			return result, er5
 		}
 		account.Privileges = &privileges
 	}
 	result.User = &account
-	er6 := s.UserInfoService.PassAuthentication(ctx, *user)
+	er6 := s.UserInfoService.Pass(ctx, *user)
 	if er6 != nil {
 		return result, er6
 	}
