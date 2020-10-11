@@ -9,7 +9,7 @@
 
 ## Services
 - Authenticator
-- PrivilegeService
+- PrivilegesLoader
 - UserInfoService
 
 ## Token
@@ -45,10 +45,10 @@ type Authenticator interface {
 }
 ```
 
-#### privilege_service.go
+#### privileges_loader.go
 ```go
-type PrivilegeService interface {
-	GetPrivileges(ctx context.Context, id string) ([]Privilege, error)
+type PrivilegesLoader interface {
+	Load(ctx context.Context, id string) ([]Privilege, error)
 }
 ```
 
@@ -56,7 +56,7 @@ type PrivilegeService interface {
 ```go
 type UserInfoService interface {
 	GetUserInfo(ctx context.Context, auth AuthInfo) (*UserInfo, error)
-	PassAuthentication(ctx context.Context, user UserInfo) (bool, error)
-	HandleWrongPassword(ctx context.Context, user UserInfo) (bool, error)
+	Pass(ctx context.Context, user UserInfo) (bool, error)
+	Fail(ctx context.Context, user UserInfo) (bool, error)
 }
 ```
