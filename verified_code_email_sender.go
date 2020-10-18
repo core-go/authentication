@@ -10,13 +10,13 @@ import (
 )
 
 type VerifiedCodeEmailSender struct {
-	MailService    mail.MailService
+	MailSender     mail.SimpleMailSender
 	From           mail.Email
 	TemplateLoader mail.TemplateLoader
 }
 
-func NewVerifiedCodeEmailSender(mailService mail.MailService, from mail.Email, templateLoader mail.TemplateLoader) *VerifiedCodeEmailSender {
-	return &VerifiedCodeEmailSender{mailService, from, templateLoader}
+func NewVerifiedCodeEmailSender(mailSender mail.SimpleMailSender, from mail.Email, templateLoader mail.TemplateLoader) *VerifiedCodeEmailSender {
+	return &VerifiedCodeEmailSender{mailSender, from, templateLoader}
 }
 
 func truncatingSprintf(str string, args ...interface{}) string {
@@ -51,6 +51,6 @@ func (s *VerifiedCodeEmailSender) Send(ctx context.Context, to string, code stri
 
 	toMail := params.(string)
 	mailTo := []mail.Email{{Address: toMail}}
-	mailData := mail.NewHtmlMail(s.From, subject, mailTo, nil, content)
-	return s.MailService.Send(*mailData)
+	mailData := mail.NewSimpleHtmlMail(s.From, subject, mailTo, nil, content)
+	return s.MailSender.Send(*mailData)
 }
