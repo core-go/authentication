@@ -1,7 +1,9 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
+	"net"
 	"net/http"
 )
 
@@ -10,17 +12,25 @@ type AuthenticationHandler struct {
 	Decrypter     PasswordDecrypter
 	EncryptionKey string
 	LogService    AuthActivityLogService
+	Ip            string
 }
 
-func NewAuthenticationHandler(authenticationService Authenticator, decrypter PasswordDecrypter, encryptionKey string, logService AuthActivityLogService) *AuthenticationHandler {
-	return &AuthenticationHandler{authenticationService, decrypter, encryptionKey, logService}
+func NewAuthenticationHandler(authenticationService Authenticator, decrypter PasswordDecrypter, encryptionKey string, logService AuthActivityLogService, ip string) *AuthenticationHandler {
+	return &AuthenticationHandler{authenticationService, decrypter, encryptionKey, logService, ip}
 }
 
 func NewDefaultAuthenticationHandler(authenticationService Authenticator) *AuthenticationHandler {
-	return &AuthenticationHandler{authenticationService, nil, "", nil}
+	return &AuthenticationHandler{authenticationService, nil, "", nil, ""}
 }
 
 func (c *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Request) {
+	ip := GetRemoteIp(r)
+	var ctx context.Context
+	ctx = r.Context()
+	if len(c.Ip) > 0 {
+		ctx = context.WithValue(ctx, c.Ip, ip)
+	}
+
 	var user AuthInfo
 	er1 := json.NewDecoder(r.Body).Decode(&user)
 	if er1 != nil {
@@ -37,11 +47,18 @@ func (c *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	result, er3 := c.Authenticator.Authenticate(r.Context(), user)
+	result, er3 := c.Authenticator.Authenticate(ctx, user)
 	if er3 != nil {
 		result.Status = StatusSystemError
 		Respond(w, r, http.StatusOK, result, c.LogService, "Authentication", "Sign in", false, er3.Error())
 	} else {
 		Respond(w, r, http.StatusOK, result, c.LogService, "Authentication", "Sign in", true, "")
 	}
+}
+func GetRemoteIp(r *http.Request) string {
+	remoteIP, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		remoteIP = r.RemoteAddr
+	}
+	return remoteIP
 }
