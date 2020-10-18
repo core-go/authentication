@@ -19,9 +19,10 @@ type DefaultAuthenticator struct {
 	CodeService        CodeService
 	CodeSender         CodeSender
 	Generator          CodeGenerator
+	Ip                 string
 }
 
-func NewBasicAuthenticator(basicAuthenticator Authenticator, userInfoService UserInfoService, privilegesLoader PrivilegesLoader, tokenGenerator TokenGenerator, tokenConfig TokenConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, codeSender CodeSender, generator CodeGenerator) *DefaultAuthenticator {
+func NewBasicAuthenticator(basicAuthenticator Authenticator, userInfoService UserInfoService, privilegesLoader PrivilegesLoader, tokenGenerator TokenGenerator, tokenConfig TokenConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, codeSender CodeSender, generator CodeGenerator, ip string) *DefaultAuthenticator {
 	if basicAuthenticator == nil {
 		panic(errors.New("basic authenticator cannot be nil"))
 	}
@@ -38,11 +39,15 @@ func NewBasicAuthenticator(basicAuthenticator Authenticator, userInfoService Use
 		CodeService:        codeService,
 		CodeSender:         codeSender,
 		Generator:          generator,
+		Ip:                 ip,
 	}
 	return service
 }
 
-func NewDefaultAuthenticator(userInfoService UserInfoService, passwordComparator ValueComparator, privilegeService PrivilegesLoader, tokenGenerator TokenGenerator, tokenConfig TokenConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, codeSender CodeSender, generator CodeGenerator) *DefaultAuthenticator {
+func NewAuthenticator(userInfoService UserInfoService, passwordComparator ValueComparator, privilegesLoader PrivilegesLoader, tokenGenerator TokenGenerator, tokenConfig TokenConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, codeSender CodeSender, generator CodeGenerator, ip string) *DefaultAuthenticator {
+	return NewDefaultAuthenticator(userInfoService, passwordComparator, privilegesLoader, tokenGenerator, tokenConfig, isUsingTwoFactor, codeExpires, codeService, codeSender, generator, "")
+}
+func NewDefaultAuthenticator(userInfoService UserInfoService, passwordComparator ValueComparator, privilegesLoader PrivilegesLoader, tokenGenerator TokenGenerator, tokenConfig TokenConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, codeSender CodeSender, generator CodeGenerator, ip string) *DefaultAuthenticator {
 	if passwordComparator == nil {
 		panic(errors.New("password comparator cannot be nil"))
 	}
@@ -53,13 +58,14 @@ func NewDefaultAuthenticator(userInfoService UserInfoService, passwordComparator
 		BasicAuthenticator: nil,
 		UserInfoService:    userInfoService,
 		PasswordComparator: passwordComparator,
-		PrivilegesLoader:   privilegeService,
+		PrivilegesLoader:   privilegesLoader,
 		TokenGenerator:     tokenGenerator,
 		TokenConfig:        tokenConfig,
 		CodeExpires:        codeExpires,
 		CodeService:        codeService,
 		CodeSender:         codeSender,
 		Generator:          generator,
+		Ip:                 ip,
 	}
 	return service
 }
@@ -80,14 +86,15 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 		if er0 != nil || result.Status != StatusSuccess && result.Status != StatusSuccessAndReactivated {
 			return result, er0
 		}
+		ip := FromContext(ctx, s.Ip)
 		if s.UserInfoService == nil {
 			var tokenExpiredTime = time.Now().Add(time.Second * time.Duration(int(s.TokenConfig.Expires/1000)))
 			var payload StoredUser
 			if result.User == nil {
-				payload = StoredUser{UserId: info.Username, Username: info.Username, Contact: "", UserType: ""}
+				payload = StoredUser{UserId: info.Username, Username: info.Username, Contact: "", UserType: "", Ip: ip}
 			} else {
 				u := result.User
-				payload = StoredUser{UserId: u.UserId, Username: u.Username, Contact: u.Contact, UserType: u.UserType, Roles: u.Roles}
+				payload = StoredUser{UserId: u.UserId, Username: u.Username, Contact: u.Contact, UserType: u.UserType, Roles: u.Roles, Ip: ip}
 			}
 			token, er4 := s.TokenGenerator.GenerateToken(payload, s.TokenConfig.Secret, s.TokenConfig.Expires)
 			if er4 != nil {
@@ -206,7 +213,8 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 
 	tokenExpiredTime, jwtTokenExpires := SetTokenExpiredTime(user.AccessTimeFrom, user.AccessTimeTo, s.TokenConfig.Expires)
 	//tokenExpiredTime, jwtTokenExpires := s.setTokenExpiredTime(*user)
-	payload := StoredUser{UserId: user.UserId, Username: user.Username, Contact: user.Contact, UserType: user.UserType, Roles: user.Roles, Privileges: user.Privileges}
+	ip := FromContext(ctx, s.Ip)
+	payload := StoredUser{UserId: user.UserId, Username: user.Username, Contact: user.Contact, UserType: user.UserType, Roles: user.Roles, Privileges: user.Privileges, Ip: ip}
 	token, er4 := s.TokenGenerator.GenerateToken(payload, s.TokenConfig.Secret, jwtTokenExpires)
 	if er4 != nil {
 		return result, er4
@@ -279,4 +287,16 @@ func mapUserInfoToUserAccount(user UserInfo) UserAccount {
 		account.Gender = user.Gender
 	}
 	return account
+}
+
+func FromContext(ctx context.Context, key string) string {
+	u := ctx.Value(key)
+	if u == nil {
+		return ""
+	}
+	v, ok := u.(string)
+	if !ok {
+		return ""
+	}
+	return v
 }
