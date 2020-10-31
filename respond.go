@@ -18,6 +18,6 @@ func Respond(w http.ResponseWriter, r *http.Request, code int, result interface{
 	w.Write(response)
 	if logService != nil {
 		newCtx := context.WithValue(r.Context(), "request", r)
-		logService.SaveLog(newCtx, resource, action, success, desc)
+		logService.Write(newCtx, resource, action, success, desc)
 	}
 }

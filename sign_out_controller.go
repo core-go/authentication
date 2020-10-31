@@ -42,13 +42,13 @@ func (c *SignOutController) SignOut(w http.ResponseWriter, r *http.Request) {
 	er2 := c.TokenBlacklistService.Revoke(token, "The token has signed out.", expiresTime)
 	if er2 != nil {
 		if c.LogService != nil {
-			c.LogService.SaveLog(r.Context(), "Authentication", "Sign Out", false, er2.Error())
+			c.LogService.Write(r.Context(), "Authentication", "Sign Out", false, er2.Error())
 		}
 		RespondString(w, r, http.StatusInternalServerError, er2.Error())
 		return
 	}
 	if c.LogService != nil {
-		c.LogService.SaveLog(r.Context(), "Authentication", "Sign Out", true, "")
+		c.LogService.Write(r.Context(), "Authentication", "Sign Out", true, "")
 	}
 	RespondString(w, r, http.StatusOK, "true")
 }
