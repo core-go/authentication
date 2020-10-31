@@ -19,10 +19,10 @@ type DefaultAuthenticator struct {
 	CodeService        CodeService
 	CodeSender         CodeSender
 	Generator          CodeGenerator
-	Ip                 string
+	PayloadConfig      PayloadConfig
 }
 
-func NewBasicAuthenticator(basicAuthenticator Authenticator, userInfoService UserInfoService, privilegesLoader PrivilegesLoader, tokenGenerator TokenGenerator, tokenConfig TokenConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, codeSender CodeSender, generator CodeGenerator, ip string) *DefaultAuthenticator {
+func NewBasicAuthenticator(basicAuthenticator Authenticator, userInfoService UserInfoService, privilegesLoader PrivilegesLoader, tokenGenerator TokenGenerator, tokenConfig TokenConfig, payloadConfig PayloadConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, codeSender CodeSender, generator CodeGenerator) *DefaultAuthenticator {
 	if basicAuthenticator == nil {
 		panic(errors.New("basic authenticator cannot be nil"))
 	}
@@ -39,15 +39,12 @@ func NewBasicAuthenticator(basicAuthenticator Authenticator, userInfoService Use
 		CodeService:        codeService,
 		CodeSender:         codeSender,
 		Generator:          generator,
-		Ip:                 ip,
+		PayloadConfig:      payloadConfig,
 	}
 	return service
 }
 
-func NewAuthenticator(userInfoService UserInfoService, passwordComparator ValueComparator, privilegesLoader PrivilegesLoader, tokenGenerator TokenGenerator, tokenConfig TokenConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, codeSender CodeSender, generator CodeGenerator, ip string) *DefaultAuthenticator {
-	return NewDefaultAuthenticator(userInfoService, passwordComparator, privilegesLoader, tokenGenerator, tokenConfig, isUsingTwoFactor, codeExpires, codeService, codeSender, generator, "")
-}
-func NewDefaultAuthenticator(userInfoService UserInfoService, passwordComparator ValueComparator, privilegesLoader PrivilegesLoader, tokenGenerator TokenGenerator, tokenConfig TokenConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, codeSender CodeSender, generator CodeGenerator, ip string) *DefaultAuthenticator {
+func NewDefaultAuthenticator(userInfoService UserInfoService, passwordComparator ValueComparator, privilegesLoader PrivilegesLoader, tokenGenerator TokenGenerator, tokenConfig TokenConfig, payloadConfig PayloadConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, codeSender CodeSender, generator CodeGenerator) *DefaultAuthenticator {
 	if passwordComparator == nil {
 		panic(errors.New("password comparator cannot be nil"))
 	}
@@ -65,7 +62,7 @@ func NewDefaultAuthenticator(userInfoService UserInfoService, passwordComparator
 		CodeService:        codeService,
 		CodeSender:         codeSender,
 		Generator:          generator,
-		Ip:                 ip,
+		PayloadConfig:      payloadConfig,
 	}
 	return service
 }
@@ -86,15 +83,20 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 		if er0 != nil || result.Status != StatusSuccess && result.Status != StatusSuccessAndReactivated {
 			return result, er0
 		}
-		ip := FromContext(ctx, s.Ip)
-		if s.UserInfoService == nil {
+		if s.UserInfoService != nil {
 			var tokenExpiredTime = time.Now().Add(time.Second * time.Duration(int(s.TokenConfig.Expires/1000)))
-			var payload StoredUser
+			var payload map[string]interface{}
 			if result.User == nil {
-				payload = StoredUser{UserId: info.Username, Username: info.Username, Contact: "", UserType: "", Ip: ip}
+				payload = make(map[string]interface{})
+				if len(s.PayloadConfig.UserId) > 0 {
+					payload[s.PayloadConfig.UserId] = info.Username
+				}
+				if len(s.PayloadConfig.Username) > 0 {
+					payload[s.PayloadConfig.Username] = info.Username
+				}
 			} else {
 				u := result.User
-				payload = StoredUser{UserId: u.UserId, Username: u.Username, Contact: u.Contact, UserType: u.UserType, Roles: u.Roles, Ip: ip}
+				payload = UserAccountToPayload(ctx, *u, s.PayloadConfig)
 			}
 			token, er4 := s.TokenGenerator.GenerateToken(payload, s.TokenConfig.Secret, s.TokenConfig.Expires)
 			if er4 != nil {
@@ -213,8 +215,8 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 
 	tokenExpiredTime, jwtTokenExpires := SetTokenExpiredTime(user.AccessTimeFrom, user.AccessTimeTo, s.TokenConfig.Expires)
 	//tokenExpiredTime, jwtTokenExpires := s.setTokenExpiredTime(*user)
-	ip := FromContext(ctx, s.Ip)
-	payload := StoredUser{UserId: user.UserId, Username: user.Username, Contact: user.Contact, UserType: user.UserType, Roles: user.Roles, Privileges: user.Privileges, Ip: ip}
+	payload := ToPayload(ctx, *user, s.PayloadConfig)
+	//payload := StoredUser{UserId: user.UserId, Username: user.Username, Contact: user.Contact, UserType: user.UserType, Roles: user.Roles, Privileges: user.Privileges}
 	token, er4 := s.TokenGenerator.GenerateToken(payload, s.TokenConfig.Secret, jwtTokenExpires)
 	if er4 != nil {
 		return result, er4
@@ -288,7 +290,6 @@ func mapUserInfoToUserAccount(user UserInfo) UserAccount {
 	}
 	return account
 }
-
 func FromContext(ctx context.Context, key string) string {
 	u := ctx.Value(key)
 	if u == nil {
@@ -299,4 +300,57 @@ func FromContext(ctx context.Context, key string) string {
 		return ""
 	}
 	return v
+}
+func UserAccountToPayload(ctx context.Context, u UserAccount, s PayloadConfig) map[string]interface{} {
+	payload := make(map[string]interface{})
+	if len(s.Ip) > 0 {
+		ip := FromContext(ctx, s.Ip)
+		if len(ip) > 0 {
+			payload[s.Ip] = ip
+		}
+	}
+	if s.UserId != "" {
+		payload[s.UserId] = u.UserId
+	}
+	if s.Username != "" {
+		payload[s.Username] = u.Username
+	}
+	if s.Contact != "" {
+		payload[s.Contact] = u.Contact
+	}
+	if s.UserType != "" {
+		payload[s.UserType] = u.UserType
+	}
+	if s.Roles != "" {
+		payload[s.Roles] = u.Roles
+	}
+	return payload
+}
+func ToPayload(ctx context.Context, user UserInfo, s PayloadConfig) map[string]interface{} {
+	payload := make(map[string]interface{})
+	if len(s.Ip) > 0 {
+		ip := FromContext(ctx, s.Ip)
+		if len(ip) > 0 {
+			payload[s.Ip] = ip
+		}
+	}
+	if len(s.UserId) > 0 {
+		payload[s.UserId] = user.UserId
+	}
+	if len(s.Username) > 0 {
+		payload[s.Username] = user.Username
+	}
+	if len(s.Contact) > 0 {
+		payload[s.Contact] = user.Contact
+	}
+	if len(s.UserType) > 0 {
+		payload[s.UserType] = user.UserType
+	}
+	if len(s.Roles) > 0 {
+		payload[s.Roles] = user.Roles
+	}
+	if len(s.Privileges) > 0 {
+		payload[s.Roles] = user.Privileges
+	}
+	return payload
 }
