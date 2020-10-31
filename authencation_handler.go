@@ -11,11 +11,11 @@ type AuthenticationHandler struct {
 	Authenticator Authenticator
 	Decrypter     PasswordDecrypter
 	EncryptionKey string
-	LogService    AuthActivityLogService
+	LogWriter    AuthActivityLogWriter
 	Ip            string
 }
 
-func NewAuthenticationHandler(authenticationService Authenticator, decrypter PasswordDecrypter, encryptionKey string, logService AuthActivityLogService, ip string) *AuthenticationHandler {
+func NewAuthenticationHandler(authenticationService Authenticator, decrypter PasswordDecrypter, encryptionKey string, logService AuthActivityLogWriter, ip string) *AuthenticationHandler {
 	return &AuthenticationHandler{authenticationService, decrypter, encryptionKey, logService, ip}
 }
 
@@ -50,9 +50,9 @@ func (c *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 	result, er3 := c.Authenticator.Authenticate(ctx, user)
 	if er3 != nil {
 		result.Status = StatusSystemError
-		Respond(w, r, http.StatusOK, result, c.LogService, "Authentication", "Sign in", false, er3.Error())
+		Respond(w, r, http.StatusOK, result, c.LogWriter, "Authentication", "Sign in", false, er3.Error())
 	} else {
-		Respond(w, r, http.StatusOK, result, c.LogService, "Authentication", "Sign in", true, "")
+		Respond(w, r, http.StatusOK, result, c.LogWriter, "Authentication", "Sign in", true, "")
 	}
 }
 func GetRemoteIp(r *http.Request) string {

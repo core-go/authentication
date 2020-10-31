@@ -10,11 +10,11 @@ type SignOutController struct {
 	TokenVerifier         TokenVerifier
 	Secret                string
 	TokenBlacklistService TokenBlacklistService
-	LogService            AuthActivityLogService
+	LogWriter            AuthActivityLogWriter
 }
 
-func NewSignOutController(tokenVerifier TokenVerifier, secret string, tokenBlacklistService TokenBlacklistService, logService AuthActivityLogService) *SignOutController {
-	return &SignOutController{tokenVerifier, secret, tokenBlacklistService, logService}
+func NewSignOutController(tokenVerifier TokenVerifier, secret string, tokenBlacklistService TokenBlacklistService, logWriter AuthActivityLogWriter) *SignOutController {
+	return &SignOutController{tokenVerifier, secret, tokenBlacklistService, logWriter}
 }
 func (c *SignOutController) SignOut(w http.ResponseWriter, r *http.Request) {
 	data := r.Header["Authorization"]
@@ -41,14 +41,14 @@ func (c *SignOutController) SignOut(w http.ResponseWriter, r *http.Request) {
 
 	er2 := c.TokenBlacklistService.Revoke(token, "The token has signed out.", expiresTime)
 	if er2 != nil {
-		if c.LogService != nil {
-			c.LogService.Write(r.Context(), "Authentication", "Sign Out", false, er2.Error())
+		if c.LogWriter != nil {
+			c.LogWriter.Write(r.Context(), "Authentication", "Sign Out", false, er2.Error())
 		}
 		RespondString(w, r, http.StatusInternalServerError, er2.Error())
 		return
 	}
-	if c.LogService != nil {
-		c.LogService.Write(r.Context(), "Authentication", "Sign Out", true, "")
+	if c.LogWriter != nil {
+		c.LogWriter.Write(r.Context(), "Authentication", "Sign Out", true, "")
 	}
 	RespondString(w, r, http.StatusOK, "true")
 }
