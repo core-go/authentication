@@ -11,7 +11,7 @@ type AuthenticationHandler struct {
 	Authenticator Authenticator
 	Decrypter     PasswordDecrypter
 	EncryptionKey string
-	LogWriter    AuthActivityLogWriter
+	LogWriter     AuthActivityLogWriter
 	Ip            string
 }
 

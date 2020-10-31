@@ -10,7 +10,7 @@ type SignOutController struct {
 	TokenVerifier         TokenVerifier
 	Secret                string
 	TokenBlacklistService TokenBlacklistService
-	LogWriter            AuthActivityLogWriter
+	LogWriter             AuthActivityLogWriter
 }
 
 func NewSignOutController(tokenVerifier TokenVerifier, secret string, tokenBlacklistService TokenBlacklistService, logWriter AuthActivityLogWriter) *SignOutController {
