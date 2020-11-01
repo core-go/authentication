@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 )
+const InternalServerError = "Internal Server Error"
 type AuthActivityLogWriter interface {
 	Write(ctx context.Context, resource string, action string, success bool, desc string) error
 }
