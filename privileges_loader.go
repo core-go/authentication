@@ -17,14 +17,13 @@ type Module struct {
 	Icon        string `json:"icon,omitempty" gorm:"column:icon" bson:"icon,omitempty" dynamodbav:"icon,omitempty" firestore:"icon,omitempty"`
 	Permissions int32  `json:"permissions" gorm:"column:permissions" bson:"permissions" dynamodbav:"permissions,omitempty" firestore:"permissions,omitempty"`
 	Sequence    int    `json:"sequence" gorm:"column:sequence" bson:"sequence" dynamodbav:"sequence,omitempty" firestore:"sequence,omitempty"`
-	Level       int    `json:"level" gorm:"column:level" bson:"level" dynamodbav:"level,omitempty" firestore:"level,omitempty"`
 	Parent      string `json:"parent" gorm:"column:parent" bson:"parent" dynamodbav:"parent,omitempty" firestore:"parent,omitempty"`
 }
 
 func ToPrivileges(modules []Module) []Privilege {
 	var menuModule []Privilege
 	for _, v := range modules {
-		if v.Level == 0 {
+		if len(v.Parent) == 0 {
 			child := make([]Privilege, 0)
 			menuModule = append(menuModule,
 				Privilege{
@@ -63,7 +62,6 @@ func findIndex(menuModule []Privilege, key string) int {
 	}
 	return -1
 }
-
 func findMenuModule(accessModules []Module, key string) bool {
 	for _, v := range accessModules {
 		if v.Id == key {
@@ -72,14 +70,12 @@ func findMenuModule(accessModules []Module, key string) bool {
 	}
 	return false
 }
-
-func sortMenu(menu []Privilege) {
+func sortModules(menu []Privilege) {
 	sort.Slice(menu, func(i, j int) bool { return menu[i].Sequence < menu[j].Sequence })
 	for _, v := range menu {
 		sort.Slice(*v.Children, func(i, j int) bool { return (*v.Children)[i].Sequence < (*v.Children)[j].Sequence })
 	}
 }
-
-func sortPrivilege(menu []Privilege) {
+func sortPrivileges(menu []Privilege) {
 	sort.Slice(menu, func(i, j int) bool { return menu[i].Id < menu[j].Id })
 }

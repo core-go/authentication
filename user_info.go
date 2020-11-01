@@ -30,4 +30,5 @@ type UserInfo struct {
 	DateFormat          string     `json:"dateFormat,omitempty" gorm:"column:dateformat" bson:"dateFormat,omitempty" dynamodbav:"dateFormat,omitempty" firestore:"dateFormat,omitempty"`
 	TimeFormat          string     `json:"timeFormat,omitempty" gorm:"column:timeformat" bson:"timeFormat,omitempty" dynamodbav:"timeFormat,omitempty" firestore:"timeFormat,omitempty"`
 	ImageUrl            string     `json:"imageUrl,omitempty" gorm:"column:imageurl" bson:"imageUrl,omitempty" dynamodbav:"imageUrl,omitempty" firestore:"imageUrl,omitempty"`
+	Status              string     `json:"status,omitempty" gorm:"column:status" bson:"status,omitempty" dynamodbav:"status,omitempty" firestore:"status,omitempty"`
 }
