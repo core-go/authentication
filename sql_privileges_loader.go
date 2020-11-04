@@ -9,17 +9,25 @@ import (
 )
 
 type SqlPrivilegesLoader struct {
-	DB    *sql.DB
-	Query string
+	DB             *sql.DB
+	Query          string
+	ParameterCount int
 }
 
-func NewSqlPrivilegesLoader(db *sql.DB, query string) *SqlPrivilegesLoader {
-	return &SqlPrivilegesLoader{DB: db, Query: query}
+func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int) *SqlPrivilegesLoader {
+	return &SqlPrivilegesLoader{DB: db, Query: query, ParameterCount: parameterCount}
 }
 func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, error) {
 	models := make([]Module, 0)
 	p0 := make([]Privilege, 0)
-	rows, er1 := l.DB.Query(l.Query, id)
+	params := make([]interface{}, 0)
+	params = append(params, id)
+	if l.ParameterCount > 1 {
+		for i := 2; i <= l.ParameterCount; i++ {
+			params = append(params, id)
+		}
+	}
+	rows, er1 := l.DB.Query(l.Query, params...)
 	if er1 != nil {
 		return p0, er1
 	}

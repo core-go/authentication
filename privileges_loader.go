@@ -10,72 +10,83 @@ type PrivilegesLoader interface {
 }
 
 type Module struct {
-	Id          string `json:"id,omitempty" gorm:"column:id" bson:"_id,omitempty" dynamodbav:"id,omitempty" firestore:"id,omitempty"`
-	Name        string `json:"name,omitempty" gorm:"column:name" bson:"name,omitempty" dynamodbav:"name,omitempty" firestore:"name,omitempty"`
-	Resource    string `json:"resource,omitempty" gorm:"column:resource" bson:"resource,omitempty" dynamodbav:"resource,omitempty" firestore:"resource,omitempty"`
-	Path        string `json:"path,omitempty" gorm:"column:path" bson:"path,omitempty" dynamodbav:"path,omitempty" firestore:"path,omitempty"`
-	Icon        string `json:"icon,omitempty" gorm:"column:icon" bson:"icon,omitempty" dynamodbav:"icon,omitempty" firestore:"icon,omitempty"`
-	Permissions int32  `json:"permissions" gorm:"column:permissions" bson:"permissions" dynamodbav:"permissions,omitempty" firestore:"permissions,omitempty"`
-	Sequence    int    `json:"sequence" gorm:"column:sequence" bson:"sequence" dynamodbav:"sequence,omitempty" firestore:"sequence,omitempty"`
-	Parent      string `json:"parent" gorm:"column:parent" bson:"parent" dynamodbav:"parent,omitempty" firestore:"parent,omitempty"`
+	Id          string  `json:"id,omitempty" gorm:"column:id" bson:"_id,omitempty" dynamodbav:"id,omitempty" firestore:"id,omitempty" sql:"id"`
+	Name        string  `json:"name,omitempty" gorm:"column:name" bson:"name,omitempty" dynamodbav:"name,omitempty" firestore:"name,omitempty" sql:"name"`
+	Resource    *string `json:"resource,omitempty" gorm:"column:resource" bson:"resource,omitempty" dynamodbav:"resource,omitempty" firestore:"resource,omitempty" sql:"resource"`
+	Path        *string `json:"path,omitempty" gorm:"column:path" bson:"path,omitempty" dynamodbav:"path,omitempty" firestore:"path,omitempty" sql:"path"`
+	Icon        *string `json:"icon,omitempty" gorm:"column:icon" bson:"icon,omitempty" dynamodbav:"icon,omitempty" firestore:"icon,omitempty" sql:"icon"`
+	Permissions int32   `json:"permissions" gorm:"column:permissions" bson:"permissions" dynamodbav:"permissions,omitempty" firestore:"permissions,omitempty" sql:"permissions"`
+	Sequence    int     `json:"sequence" gorm:"column:sequence" bson:"sequence" dynamodbav:"sequence,omitempty" firestore:"sequence,omitempty" sql:"sequence"`
+	Parent      *string `json:"parent" gorm:"column:parent" bson:"parent" dynamodbav:"parent,omitempty" firestore:"parent,omitempty" sql:"parent"`
 }
 
 func ToPrivileges(modules []Module) []Privilege {
 	var menuModule []Privilege
-	for _, v := range modules {
-		if len(v.Parent) == 0 {
-			child := make([]Privilege, 0)
-			menuModule = append(menuModule,
-				Privilege{
-					Id:       v.Id,
-					Name:     v.Name,
-					Resource: v.Resource,
-					Path:     v.Path,
-					Icon:     v.Icon,
-					Sequence: v.Sequence,
-					Children: &child,
-				})
-		} else {
-			index := findIndex(menuModule, v.Parent)
-			if index != -1 {
-				if findMenuModule(modules, v.Id) {
-					*menuModule[index].Children = append(*menuModule[index].Children, Privilege{
-						Id:       v.Id,
-						Name:     v.Name,
-						Resource: v.Resource,
-						Path:     v.Path,
-						Icon:     v.Icon,
-						Sequence: v.Sequence,
-					})
+	SortModulesById(modules) // sort by id
+	root := FindRootModules(modules)
+	for _, v := range root {
+		par := Privilege{
+			Id:       v.Id,
+			Name:     v.Name,
+			Sequence: v.Sequence,
+		}
+		if v.Resource != nil {
+			par.Resource = *v.Resource
+		}
+		if v.Path != nil {
+			par.Path = *v.Path
+		}
+		if v.Icon != nil {
+			par.Icon = *v.Icon
+		}
+		var child []Privilege
+		for i := 0; i < len(modules); i++ {
+			if modules[i].Parent != nil && v.Id == *modules[i].Parent {
+				item := modules[i]
+				sp := Privilege{
+					Id:       item.Id,
+					Name:     item.Name,
+					Sequence: item.Sequence,
 				}
+				if item.Resource != nil {
+					sp.Resource = *item.Resource
+				}
+				if item.Path != nil {
+					sp.Path = *item.Path
+				}
+				if item.Icon != nil {
+					sp.Icon = *item.Icon
+				}
+				child = append(child, sp)
 			}
 		}
+		par.Children = &child
+		menuModule = append(menuModule, par)
 	}
+	SortPrivileges(menuModule)
 	return menuModule
 }
 
-func findIndex(menuModule []Privilege, key string) int {
-	for i, v := range menuModule {
-		if v.Id == key {
-			return i
+func FindRootModules(sortModules []Module) []Module {
+	var root []Module
+	for _, module := range sortModules {
+		if *module.Parent == "" {
+			root = append(root, module)
 		}
 	}
-	return -1
+	return root
 }
-func findMenuModule(accessModules []Module, key string) bool {
-	for _, v := range accessModules {
-		if v.Id == key {
-			return true
-		}
-	}
-	return false
-}
-func sortModules(menu []Privilege) {
+
+func SortPrivileges(menu []Privilege) {
 	sort.Slice(menu, func(i, j int) bool { return menu[i].Sequence < menu[j].Sequence })
 	for _, v := range menu {
 		sort.Slice(*v.Children, func(i, j int) bool { return (*v.Children)[i].Sequence < (*v.Children)[j].Sequence })
 	}
 }
-func sortPrivileges(menu []Privilege) {
+func SortPrivilegesById(menu []Privilege) {
 	sort.Slice(menu, func(i, j int) bool { return menu[i].Id < menu[j].Id })
+}
+
+func SortModulesById(modulePath []Module) {
+	sort.Slice(modulePath, func(i, j int) bool { return modulePath[i].Id < modulePath[j].Id })
 }
