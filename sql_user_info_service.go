@@ -4,29 +4,30 @@ import (
 	"context"
 	"database/sql"
 	"reflect"
+	"time"
 )
 
 type SqlConfig struct {
-	Query           string `mapstructure:"query" json:"query,omitempty" gorm:"column:query" bson:"query,omitempty" dynamodbav:"query,omitempty" firestore:"query,omitempty"`
-	SqlPass         string `mapstructure:"pass" json:"pass,omitempty" gorm:"column:pass" bson:"pass,omitempty" dynamodbav:"pass,omitempty" firestore:"pass,omitempty"`
-	SqlFail         string `mapstructure:"fail" json:"fail,omitempty" gorm:"column:fail" bson:"fail,omitempty" dynamodbav:"fail,omitempty" firestore:"fail,omitempty"`
-	DisableStatus   string `mapstructure:"disable" json:"disable,omitempty" gorm:"column:disable" bson:"disable,omitempty" dynamodbav:"disable,omitempty" firestore:"disable,omitempty"`
-	SuspendedStatus string `mapstructure:"suspended" json:"suspended,omitempty" gorm:"column:suspended" bson:"suspended,omitempty" dynamodbav:"suspended,omitempty" firestore:"suspended,omitempty"`
+	Query         string `mapstructure:"query" json:"query,omitempty" gorm:"column:query" bson:"query,omitempty" dynamodbav:"query,omitempty" firestore:"query,omitempty"`
+	SqlPass       string `mapstructure:"pass" json:"pass,omitempty" gorm:"column:pass" bson:"pass,omitempty" dynamodbav:"pass,omitempty" firestore:"pass,omitempty"`
+	SqlFail       string `mapstructure:"fail" json:"fail,omitempty" gorm:"column:fail" bson:"fail,omitempty" dynamodbav:"fail,omitempty" firestore:"fail,omitempty"`
+	DisableStatus string `mapstructure:"disable" json:"disable,omitempty" gorm:"column:disable" bson:"disable,omitempty" dynamodbav:"disable,omitempty" firestore:"disable,omitempty"`
+	NoTime        bool   `mapstructure:"no_time" json:"noTime,omitempty" gorm:"column:notime" bson:"noTime,omitempty" dynamodbav:"noTime,omitempty" firestore:"noTime,omitempty"`
 }
 type SqlUserInfoService struct {
-	DB              *sql.DB
-	Query           string
-	SqlPass         string
-	SqlFail         string
-	DisableStatus   string
-	SuspendedStatus string
+	DB            *sql.DB
+	Query         string
+	SqlPass       string
+	SqlFail       string
+	DisableStatus string
+	NoTime        bool
 }
 
-func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus, suspendedStatus string) *SqlUserInfoService {
-	return &SqlUserInfoService{DB: db, Query: query, SqlPass: sqlPass, SqlFail: sqlFail, DisableStatus: disableStatus, SuspendedStatus: suspendedStatus}
+func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus string, noTime bool) *SqlUserInfoService {
+	return &SqlUserInfoService{DB: db, Query: query, SqlPass: sqlPass, SqlFail: sqlFail, DisableStatus: disableStatus, NoTime: noTime}
 }
 func NewSqlUserInfoByConfig(db *sql.DB, c SqlConfig) *SqlUserInfoService {
-	return NewSqlUserInfoService(db, c.Query, c.SqlPass, c.SqlFail, c.DisableStatus, c.SuspendedStatus)
+	return NewSqlUserInfoService(db, c.Query, c.SqlPass, c.SqlFail, c.DisableStatus, c.NoTime)
 }
 func (l SqlUserInfoService) GetUserInfo(ctx context.Context, auth AuthInfo) (*UserInfo, error) {
 	models := make([]UserInfo, 0)
@@ -58,9 +59,6 @@ func (l SqlUserInfoService) GetUserInfo(ctx context.Context, auth AuthInfo) (*Us
 	if len(tb) > 0 {
 		if c, ok := tb[0].(*UserInfo); ok {
 			if len(c.Status) > 0 {
-				if c.Status == l.SuspendedStatus {
-					c.Suspended = true
-				}
 				if c.Status == l.DisableStatus {
 					c.Disable = true
 				}
@@ -74,13 +72,23 @@ func (l SqlUserInfoService) Pass(ctx context.Context, user UserInfo) error {
 	if len(l.SqlPass) == 0 {
 		return nil
 	}
-	_, err := l.DB.Exec(l.SqlPass, user.UserId)
-	return err
+	if l.NoTime {
+		_, err := l.DB.Exec(l.SqlPass, user.UserId)
+		return err
+	} else {
+		_, err := l.DB.Exec(l.SqlPass, user.UserId, time.Now())
+		return err
+	}
 }
 func (l SqlUserInfoService) Fail(ctx context.Context, user UserInfo) error {
 	if len(l.SqlFail) == 0 {
 		return nil
 	}
-	_, err := l.DB.Exec(l.SqlFail, user.UserId)
-	return err
+	if l.NoTime {
+		_, err := l.DB.Exec(l.SqlFail, user.UserId)
+		return err
+	} else {
+		_, err := l.DB.Exec(l.SqlFail, user.UserId, time.Now())
+		return err
+	}
 }
