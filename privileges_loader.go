@@ -12,7 +12,7 @@ type PrivilegesLoader interface {
 type Module struct {
 	Id          string  `json:"id,omitempty" gorm:"column:id" bson:"_id,omitempty" dynamodbav:"id,omitempty" firestore:"id,omitempty" sql:"id"`
 	Name        string  `json:"name,omitempty" gorm:"column:name" bson:"name,omitempty" dynamodbav:"name,omitempty" firestore:"name,omitempty" sql:"name"`
-	Resource    *string `json:"resource,omitempty" gorm:"column:resource" bson:"resource,omitempty" dynamodbav:"resource,omitempty" firestore:"resource,omitempty" sql:"resource"`
+	Resource    *string `json:"resource,omitempty" gorm:"column:resource_key" bson:"resource,omitempty" dynamodbav:"resource,omitempty" firestore:"resource,omitempty" sql:"resource"`
 	Path        *string `json:"path,omitempty" gorm:"column:path" bson:"path,omitempty" dynamodbav:"path,omitempty" firestore:"path,omitempty" sql:"path"`
 	Icon        *string `json:"icon,omitempty" gorm:"column:icon" bson:"icon,omitempty" dynamodbav:"icon,omitempty" firestore:"icon,omitempty" sql:"icon"`
 	Permissions int32   `json:"permissions" gorm:"column:permissions" bson:"permissions" dynamodbav:"permissions,omitempty" firestore:"permissions,omitempty" sql:"permissions"`
@@ -64,6 +64,62 @@ func ToPrivileges(modules []Module) []Privilege {
 		menuModule = append(menuModule, par)
 	}
 	SortPrivileges(menuModule)
+	return menuModule
+}
+
+func ToPrivilegesWithNoSequence(modules []Module) []Privilege {
+	var menuModule []Privilege
+	SortModulesById(modules) // sort by id
+	root := FindRootModules(modules)
+	for _, v := range root {
+		par := Privilege{
+			Id:       v.Id,
+			Name:     v.Name,
+			Sequence: v.Sequence,
+		}
+		if v.Resource != nil {
+			par.Resource = *v.Resource
+		}
+		if v.Path != nil {
+			par.Path = *v.Path
+		}
+		if v.Icon != nil {
+			par.Icon = *v.Icon
+		}
+		var child []Privilege
+		for i := 0; i < len(modules); i++ {
+			if modules[i].Parent != nil && v.Id == *modules[i].Parent {
+				item := modules[i]
+				sp := Privilege{
+					Id:       item.Id,
+					Name:     item.Name,
+					Sequence: item.Sequence,
+				}
+				if item.Resource != nil {
+					sp.Resource = *item.Resource
+				}
+				if item.Path != nil {
+					sp.Path = *item.Path
+				}
+				if item.Icon != nil {
+					sp.Icon = *item.Icon
+				}
+				child = append(child, sp)
+			}
+		}
+		par.Children = &child
+		menuModule = append(menuModule, par)
+	}
+	SortPrivileges(menuModule)
+	for j :=0; j < len(menuModule); j++ {
+		menuModule[j].Sequence = 0
+		child := *menuModule[j].Children
+		if child != nil {
+			for x,_ := range child {
+				child[x].Sequence = 0
+			}
+		}
+	}
 	return menuModule
 }
 

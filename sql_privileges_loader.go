@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 )
@@ -12,10 +13,11 @@ type SqlPrivilegesLoader struct {
 	DB             *sql.DB
 	Query          string
 	ParameterCount int
+	NoSequence bool
 }
 
-func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int) *SqlPrivilegesLoader {
-	return &SqlPrivilegesLoader{DB: db, Query: query, ParameterCount: parameterCount}
+func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int, noSequence bool) *SqlPrivilegesLoader {
+	return &SqlPrivilegesLoader{DB: db, Query: query, ParameterCount: parameterCount, NoSequence: noSequence}
 }
 func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, error) {
 	models := make([]Module, 0)
@@ -25,6 +27,12 @@ func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, 
 	if l.ParameterCount > 1 {
 		for i := 2; i <= l.ParameterCount; i++ {
 			params = append(params, id)
+		}
+	}
+	if getDriver(l.DB) == DRIVER_ORACLE {
+		for i :=0; i < len(params); i++ {
+			count := i+1
+			l.Query = strings.Replace(l.Query,"?",":val" + fmt.Sprintf("%v",count) ,1)
 		}
 	}
 	rows, er1 := l.DB.Query(l.Query, params...)
@@ -39,7 +47,7 @@ func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, 
 	// get list indexes column
 	modelTypes := reflect.TypeOf(models).Elem()
 	modelType := reflect.TypeOf(Module{})
-	indexes, er3 := getColumnIndexes(modelType, columns)
+	indexes, er3 := getColumnIndexes(modelType, columns,getDriver(l.DB))
 	if er3 != nil {
 		return p0, er3
 	}
@@ -52,7 +60,12 @@ func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, 
 			models = append(models, *c)
 		}
 	}
-	p := ToPrivileges(models)
+	var p []Privilege
+	if l.NoSequence == true {
+		p = ToPrivilegesWithNoSequence(models)
+	} else {
+		p = ToPrivileges(models)
+	}
 	return p, nil
 }
 
@@ -74,7 +87,7 @@ func StructScan(s interface{}, indexColumns []int) (r []interface{}) {
 	}
 	return
 }
-func getColumnIndexes(modelType reflect.Type, columnsName []string) (indexes []int, err error) {
+func getColumnIndexes(modelType reflect.Type, columnsName []string, driver string) (indexes []int, err error) {
 	if modelType.Kind() != reflect.Struct {
 		return nil, errors.New("bad type")
 	}
@@ -82,6 +95,9 @@ func getColumnIndexes(modelType reflect.Type, columnsName []string) (indexes []i
 		field := modelType.Field(i)
 		ormTag := field.Tag.Get("gorm")
 		column, ok := findTag(ormTag, "column")
+		if driver == DRIVER_ORACLE {
+			column = strings.ToUpper(column)
+		}
 		if ok {
 			if contains(columnsName, column) {
 				indexes = append(indexes, i)
