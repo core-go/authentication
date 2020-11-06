@@ -17,10 +17,11 @@ const (
 type SqlPrivilegesReader struct {
 	DB    *sql.DB
 	Query string
+	NoSequence bool
 }
 
-func NewSqlPrivilegesReader(db *sql.DB, query string) *SqlPrivilegesReader {
-	return &SqlPrivilegesReader{DB: db, Query: query}
+func NewSqlPrivilegesReader(db *sql.DB, query string, noSequence bool) *SqlPrivilegesReader {
+	return &SqlPrivilegesReader{DB: db, Query: query, NoSequence: noSequence }
 }
 func (l SqlPrivilegesReader) Privileges(ctx context.Context) ([]Privilege, error) {
 	models := make([]Module, 0)
@@ -50,7 +51,12 @@ func (l SqlPrivilegesReader) Privileges(ctx context.Context) ([]Privilege, error
 			models = append(models, *c)
 		}
 	}
-	p := ToPrivileges(models)
+	var p []Privilege
+	if l.NoSequence == true {
+		p = ToPrivilegesWithNoSequence(models)
+	} else {
+		p = ToPrivileges(models)
+	}
 	return p, nil
 }
 

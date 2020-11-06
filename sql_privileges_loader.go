@@ -13,10 +13,11 @@ type SqlPrivilegesLoader struct {
 	DB             *sql.DB
 	Query          string
 	ParameterCount int
+	NoSequence bool
 }
 
-func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int) *SqlPrivilegesLoader {
-	return &SqlPrivilegesLoader{DB: db, Query: query, ParameterCount: parameterCount}
+func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int, noSequence bool) *SqlPrivilegesLoader {
+	return &SqlPrivilegesLoader{DB: db, Query: query, ParameterCount: parameterCount, NoSequence: noSequence}
 }
 func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, error) {
 	models := make([]Module, 0)
@@ -59,7 +60,12 @@ func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, 
 			models = append(models, *c)
 		}
 	}
-	p := ToPrivileges(models)
+	var p []Privilege
+	if l.NoSequence == true {
+		p = ToPrivilegesWithNoSequence(models)
+	} else {
+		p = ToPrivileges(models)
+	}
 	return p, nil
 }
 

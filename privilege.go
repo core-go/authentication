@@ -7,6 +7,6 @@ type Privilege struct {
 	Path        string       `json:"path,omitempty" gorm:"column:path" bson:"path,omitempty" dynamodbav:"path,omitempty" firestore:"path,omitempty"`
 	Icon        string       `json:"icon,omitempty" gorm:"column:icon" bson:"icon,omitempty" dynamodbav:"icon,omitempty" firestore:"icon,omitempty"`
 	Permissions int32        `json:"permissions" gorm:"column:permissions" bson:"permissions" dynamodbav:"permissions,omitempty" firestore:"permissions,omitempty"`
-	Sequence    int          `json:"sequence" gorm:"column:sequence" bson:"sequence" dynamodbav:"sequence,omitempty" firestore:"sequence,omitempty"`
+	Sequence    int          `json:"sequence,omitempty" gorm:"column:sequence" bson:"sequence" dynamodbav:"sequence,omitempty" firestore:"sequence,omitempty"`
 	Children    *[]Privilege `json:"children,omitempty" gorm:"column:children" bson:"children,omitempty" dynamodbav:"children,omitempty" firestore:"children,omitempty"`
 }
