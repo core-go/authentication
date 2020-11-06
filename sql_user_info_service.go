@@ -48,7 +48,7 @@ func (l SqlUserInfoService) GetUserInfo(ctx context.Context, auth AuthInfo) (*Us
 		return nil, er2
 	}
 	// get list indexes column
-	indexes, er3 := getColumnIndexes(modelType, columns)
+	indexes, er3 := getColumnIndexes(modelType, columns,getDriver(l.DB))
 	if er3 != nil {
 		return nil, er3
 	}
@@ -76,7 +76,7 @@ func (l SqlUserInfoService) Pass(ctx context.Context, user UserInfo) error {
 		_, err := l.DB.Exec(l.SqlPass, user.UserId)
 		return err
 	} else {
-		_, err := l.DB.Exec(l.SqlPass, user.UserId, time.Now())
+		_, err := l.DB.Exec(l.SqlPass, time.Now(), user.UserId)
 		return err
 	}
 }
@@ -88,7 +88,7 @@ func (l SqlUserInfoService) Fail(ctx context.Context, user UserInfo) error {
 		_, err := l.DB.Exec(l.SqlFail, user.UserId)
 		return err
 	} else {
-		_, err := l.DB.Exec(l.SqlFail, user.UserId, time.Now())
+		_, err := l.DB.Exec(l.SqlFail, time.Now(), user.UserId)
 		return err
 	}
 }

@@ -12,7 +12,7 @@ type PrivilegesLoader interface {
 type Module struct {
 	Id          string  `json:"id,omitempty" gorm:"column:id" bson:"_id,omitempty" dynamodbav:"id,omitempty" firestore:"id,omitempty" sql:"id"`
 	Name        string  `json:"name,omitempty" gorm:"column:name" bson:"name,omitempty" dynamodbav:"name,omitempty" firestore:"name,omitempty" sql:"name"`
-	Resource    *string `json:"resource,omitempty" gorm:"column:resource" bson:"resource,omitempty" dynamodbav:"resource,omitempty" firestore:"resource,omitempty" sql:"resource"`
+	Resource    *string `json:"resource,omitempty" gorm:"column:resource_key" bson:"resource,omitempty" dynamodbav:"resource,omitempty" firestore:"resource,omitempty" sql:"resource"`
 	Path        *string `json:"path,omitempty" gorm:"column:path" bson:"path,omitempty" dynamodbav:"path,omitempty" firestore:"path,omitempty" sql:"path"`
 	Icon        *string `json:"icon,omitempty" gorm:"column:icon" bson:"icon,omitempty" dynamodbav:"icon,omitempty" firestore:"icon,omitempty" sql:"icon"`
 	Permissions int32   `json:"permissions" gorm:"column:permissions" bson:"permissions" dynamodbav:"permissions,omitempty" firestore:"permissions,omitempty" sql:"permissions"`

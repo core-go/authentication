@@ -6,6 +6,14 @@ import (
 	"reflect"
 )
 
+const (
+	DRIVER_POSTGRES 	= "postgres"
+	DRIVER_MYSQL    	= "mysql"
+	DRIVER_MSSQL    	= "mssql"
+	DRIVER_ORACLE    	= "oracle"
+	DRIVER_NOT_SUPPORT  = "no support"
+)
+
 type SqlPrivilegesReader struct {
 	DB    *sql.DB
 	Query string
@@ -29,7 +37,7 @@ func (l SqlPrivilegesReader) Privileges(ctx context.Context) ([]Privilege, error
 	// get list indexes column
 	modelTypes := reflect.TypeOf(models).Elem()
 	modelType := reflect.TypeOf(Module{})
-	indexes, er3 := getColumnIndexes(modelType, columns)
+	indexes, er3 := getColumnIndexes(modelType, columns,getDriver(l.DB))
 	if er3 != nil {
 		return p0, er3
 	}
@@ -44,4 +52,20 @@ func (l SqlPrivilegesReader) Privileges(ctx context.Context) ([]Privilege, error
 	}
 	p := ToPrivileges(models)
 	return p, nil
+}
+
+func getDriver(db *sql.DB) string {
+	driver := reflect.TypeOf(db.Driver()).String()
+	switch driver {
+	case "*postgres.Driver":
+		return DRIVER_POSTGRES
+	case "*mysql.MySQLDriver":
+		return DRIVER_MYSQL
+	case "*mssql.Driver":
+		return DRIVER_MSSQL
+	case "*godror.drv":
+		return DRIVER_ORACLE
+	default:
+		return DRIVER_NOT_SUPPORT
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 )
@@ -27,6 +28,12 @@ func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, 
 			params = append(params, id)
 		}
 	}
+	if getDriver(l.DB) == DRIVER_ORACLE {
+		for i :=0; i < len(params); i++ {
+			count := i+1
+			l.Query = strings.Replace(l.Query,"?",":val" + fmt.Sprintf("%v",count) ,1)
+		}
+	}
 	rows, er1 := l.DB.Query(l.Query, params...)
 	if er1 != nil {
 		return p0, er1
@@ -39,7 +46,7 @@ func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, 
 	// get list indexes column
 	modelTypes := reflect.TypeOf(models).Elem()
 	modelType := reflect.TypeOf(Module{})
-	indexes, er3 := getColumnIndexes(modelType, columns)
+	indexes, er3 := getColumnIndexes(modelType, columns,getDriver(l.DB))
 	if er3 != nil {
 		return p0, er3
 	}
@@ -74,7 +81,7 @@ func StructScan(s interface{}, indexColumns []int) (r []interface{}) {
 	}
 	return
 }
-func getColumnIndexes(modelType reflect.Type, columnsName []string) (indexes []int, err error) {
+func getColumnIndexes(modelType reflect.Type, columnsName []string, driver string) (indexes []int, err error) {
 	if modelType.Kind() != reflect.Struct {
 		return nil, errors.New("bad type")
 	}
@@ -82,6 +89,9 @@ func getColumnIndexes(modelType reflect.Type, columnsName []string) (indexes []i
 		field := modelType.Field(i)
 		ormTag := field.Tag.Get("gorm")
 		column, ok := findTag(ormTag, "column")
+		if driver == DRIVER_ORACLE {
+			column = strings.ToUpper(column)
+		}
 		if ok {
 			if contains(columnsName, column) {
 				indexes = append(indexes, i)
