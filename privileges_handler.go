@@ -21,8 +21,8 @@ func NewPrivilegesHandler(reader PrivilegesReader, resource string, action strin
 func (c *PrivilegesHandler) Privileges(w http.ResponseWriter, r *http.Request) {
 	privileges, err := c.Reader.Privileges(r.Context())
 	if err != nil {
-		Respond(w, r, http.StatusInternalServerError, InternalServerError, c.LogWriter, c.Resource, c.Action, false, err.Error())
+		respond(w, r, http.StatusInternalServerError, InternalServerError, c.LogWriter, c.Resource, c.Action, false, err.Error())
 	} else {
-		Respond(w, r, http.StatusOK, privileges, c.LogWriter, c.Resource, c.Action, true, "")
+		respond(w, r, http.StatusOK, privileges, c.LogWriter, c.Resource, c.Action, true, "")
 	}
 }

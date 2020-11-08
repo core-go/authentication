@@ -41,33 +41,42 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 	ctx = r.Context()
 	if len(h.Ip) > 0 {
 		ctx = context.WithValue(ctx, h.Ip, ip)
+		r = r.WithContext(ctx)
 	}
 
 	var user AuthInfo
 	er1 := json.NewDecoder(r.Body).Decode(&user)
 	if er1 != nil {
-		RespondString(w, r, http.StatusBadRequest, "cannot decode authentication info: "+er1.Error())
+		msg := "cannot decode authentication info: "+er1.Error()
+		if h.LogError != nil {
+			h.LogError(r.Context(), msg)
+		}
+		respondString(w, r, http.StatusBadRequest, msg)
 		return
 	}
 
 	if h.Decrypter != nil && len(h.EncryptionKey) > 0 {
 		if decodedPassword, er2 := h.Decrypter.Decrypt(user.Password, h.EncryptionKey); er2 != nil {
-			RespondString(w, r, http.StatusBadRequest, "cannot decrypt password: "+er2.Error())
+			msg := "cannot decrypt password: "+er2.Error()
+			if h.LogError != nil {
+				h.LogError(r.Context(), msg)
+			}
+			respondString(w, r, http.StatusBadRequest, msg)
 			return
 		} else {
 			user.Password = decodedPassword
 		}
 	}
 
-	result, er3 := h.Authenticator.Authenticate(ctx, user)
+	result, er3 := h.Authenticator.Authenticate(r.Context(), user)
 	if er3 != nil {
 		result.Status = StatusSystemError
 		if h.LogError != nil {
 			h.LogError(r.Context(), er3.Error())
 		}
-		Respond(w, r, http.StatusOK, result, h.LogWriter, h.Resource, h.Action, false, er3.Error())
+		respond(w, r, http.StatusOK, result, h.LogWriter, h.Resource, h.Action, false, er3.Error())
 	} else {
-		Respond(w, r, http.StatusOK, result, h.LogWriter, h.Resource, h.Action, true, "")
+		respond(w, r, http.StatusOK, result, h.LogWriter, h.Resource, h.Action, true, "")
 	}
 }
 func GetRemoteIp(r *http.Request) string {

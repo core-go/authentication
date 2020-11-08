@@ -35,14 +35,14 @@ func (c *PrivilegesByEntityHandler) PrivilegesById(w http.ResponseWriter, r *htt
 		if len(s) - c.Offset - 1 >= 0 {
 			id = s[len(s) - c.Offset - 1]
 		} else {
-			RespondString(w, r, http.StatusBadRequest, "URL is not valid")
+			respondString(w, r, http.StatusBadRequest, "URL is not valid")
 			return
 		}
 	}
 	privileges, err := c.Loader.Load(r.Context(), id)
 	if err != nil {
-		Respond(w, r, http.StatusInternalServerError, InternalServerError, c.LogWriter, c.Resource, c.Action, false, err.Error())
+		respond(w, r, http.StatusInternalServerError, InternalServerError, c.LogWriter, c.Resource, c.Action, false, err.Error())
 	} else {
-		Respond(w, r, http.StatusOK, privileges, c.LogWriter, c.Resource, c.Action, true, "")
+		respond(w, r, http.StatusOK, privileges, c.LogWriter, c.Resource, c.Action, true, "")
 	}
 }

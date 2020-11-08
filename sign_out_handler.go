@@ -31,19 +31,19 @@ func (h *SignOutHandler) SignOut(w http.ResponseWriter, r *http.Request) {
 	token := parseToken(data)
 
 	if len(token) == 0 {
-		RespondString(w, r, http.StatusBadRequest, "Invalid token")
+		respondString(w, r, http.StatusBadRequest, "Invalid token")
 		return
 	}
 
 	_, _, expiresAt, er1 := h.TokenVerifier.VerifyToken(token, h.Secret)
 
 	if er1 != nil {
-		RespondString(w, r, http.StatusBadRequest, "Invalid token")
+		respondString(w, r, http.StatusBadRequest, "Invalid token")
 		return
 	}
 
 	if h.TokenBlacklistService == nil {
-		RespondString(w, r, http.StatusInternalServerError, "No service to sign out")
+		respondString(w, r, http.StatusInternalServerError, "No service to sign out")
 		return
 	}
 
@@ -54,13 +54,13 @@ func (h *SignOutHandler) SignOut(w http.ResponseWriter, r *http.Request) {
 		if h.LogWriter != nil {
 			h.LogWriter.Write(r.Context(), h.Resource, h.Action, false, er2.Error())
 		}
-		RespondString(w, r, http.StatusInternalServerError, er2.Error())
+		respondString(w, r, http.StatusInternalServerError, er2.Error())
 		return
 	}
 	if h.LogWriter != nil {
 		h.LogWriter.Write(r.Context(), h.Resource, h.Action, true, "")
 	}
-	RespondString(w, r, http.StatusOK, "true")
+	respondString(w, r, http.StatusOK, "true")
 }
 
 func parseToken(data []string) string {
