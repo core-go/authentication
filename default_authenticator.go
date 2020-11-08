@@ -83,7 +83,7 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 		if er0 != nil || result.Status != StatusSuccess && result.Status != StatusSuccessAndReactivated {
 			return result, er0
 		}
-		if s.UserInfoService != nil {
+		if s.UserInfoService == nil {
 			var tokenExpiredTime = time.Now().Add(time.Second * time.Duration(int(s.TokenConfig.Expires/1000)))
 			var payload map[string]interface{}
 			if result.User == nil {
@@ -235,7 +235,9 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 		if er5 != nil {
 			return result, er5
 		}
-		account.Privileges = &privileges
+		if privileges != nil && len(privileges) > 0{
+			account.Privileges = &privileges
+		}
 	}
 	result.User = &account
 	er6 := s.UserInfoService.Pass(ctx, *user)
