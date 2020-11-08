@@ -7,21 +7,23 @@ import (
 )
 
 const (
-	DRIVER_POSTGRES 	= "postgres"
-	DRIVER_MYSQL    	= "mysql"
-	DRIVER_MSSQL    	= "mssql"
-	DRIVER_ORACLE    	= "oracle"
-	DRIVER_NOT_SUPPORT  = "no support"
+	DriverPostgres   = "postgres"
+	DriverMysql      = "mysql"
+	DriverMssql      = "mssql"
+	DriverOracle     = "oracle"
+	DriverNotSupport = "no support"
 )
 
 type SqlPrivilegesReader struct {
-	DB    *sql.DB
-	Query string
+	DB         *sql.DB
+	Query      string
 	NoSequence bool
+	Driver     string
 }
 
 func NewSqlPrivilegesReader(db *sql.DB, query string, noSequence bool) *SqlPrivilegesReader {
-	return &SqlPrivilegesReader{DB: db, Query: query, NoSequence: noSequence }
+	driver := GetDriver(db)
+	return &SqlPrivilegesReader{DB: db, Query: query, NoSequence: noSequence, Driver: driver}
 }
 func (l SqlPrivilegesReader) Privileges(ctx context.Context) ([]Privilege, error) {
 	models := make([]Module, 0)
@@ -38,7 +40,7 @@ func (l SqlPrivilegesReader) Privileges(ctx context.Context) ([]Privilege, error
 	// get list indexes column
 	modelTypes := reflect.TypeOf(models).Elem()
 	modelType := reflect.TypeOf(Module{})
-	indexes, er3 := getColumnIndexes(modelType, columns, GetDriver(l.DB))
+	indexes, er3 := GetColumnIndexes(modelType, columns, l.Driver)
 	if er3 != nil {
 		return p0, er3
 	}
@@ -64,14 +66,14 @@ func GetDriver(db *sql.DB) string {
 	driver := reflect.TypeOf(db.Driver()).String()
 	switch driver {
 	case "*postgres.Driver":
-		return DRIVER_POSTGRES
+		return DriverPostgres
 	case "*mysql.MySQLDriver":
-		return DRIVER_MYSQL
+		return DriverMysql
 	case "*mssql.Driver":
-		return DRIVER_MSSQL
+		return DriverMssql
 	case "*godror.drv":
-		return DRIVER_ORACLE
+		return DriverOracle
 	default:
-		return DRIVER_NOT_SUPPORT
+		return DriverNotSupport
 	}
 }

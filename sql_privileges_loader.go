@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -13,11 +13,14 @@ type SqlPrivilegesLoader struct {
 	DB             *sql.DB
 	Query          string
 	ParameterCount int
-	NoSequence bool
+	NoSequence     bool
+	HandleDriver   bool
+	Driver         string
 }
 
-func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int, noSequence bool) *SqlPrivilegesLoader {
-	return &SqlPrivilegesLoader{DB: db, Query: query, ParameterCount: parameterCount, NoSequence: noSequence}
+func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int, noSequence bool, handleDriver bool) *SqlPrivilegesLoader {
+	driver := GetDriver(db)
+	return &SqlPrivilegesLoader{DB: db, Query: query, ParameterCount: parameterCount, NoSequence: noSequence, HandleDriver: handleDriver, Driver: driver}
 }
 func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, error) {
 	models := make([]Module, 0)
@@ -29,10 +32,19 @@ func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, 
 			params = append(params, id)
 		}
 	}
-	if GetDriver(l.DB) == DRIVER_ORACLE {
-		for i :=0; i < len(params); i++ {
-			count := i+1
-			l.Query = strings.Replace(l.Query,"?",":val" + fmt.Sprintf("%v",count) ,1)
+	driver := l.Driver
+	if l.HandleDriver {
+		if driver == DriverOracle || driver == DriverPostgres {
+			var x string
+			if driver == DriverOracle {
+				x = ":val"
+			} else {
+				x = "$"
+			}
+			for i := 0; i < len(params); i++ {
+				count := i + 1
+				l.Query = strings.Replace(l.Query, "?", x+strconv.Itoa(count), 1)
+			}
 		}
 	}
 	rows, er1 := l.DB.Query(l.Query, params...)
@@ -47,7 +59,7 @@ func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, 
 	// get list indexes column
 	modelTypes := reflect.TypeOf(models).Elem()
 	modelType := reflect.TypeOf(Module{})
-	indexes, er3 := getColumnIndexes(modelType, columns, GetDriver(l.DB))
+	indexes, er3 := GetColumnIndexes(modelType, columns, driver)
 	if er3 != nil {
 		return p0, er3
 	}
@@ -87,15 +99,15 @@ func StructScan(s interface{}, indexColumns []int) (r []interface{}) {
 	}
 	return
 }
-func getColumnIndexes(modelType reflect.Type, columnsName []string, driver string) (indexes []int, err error) {
+func GetColumnIndexes(modelType reflect.Type, columnsName []string, driver string) (indexes []int, err error) {
 	if modelType.Kind() != reflect.Struct {
 		return nil, errors.New("bad type")
 	}
 	for i := 0; i < modelType.NumField(); i++ {
 		field := modelType.Field(i)
 		ormTag := field.Tag.Get("gorm")
-		column, ok := findTag(ormTag, "column")
-		if driver == DRIVER_ORACLE {
+		column, ok := FindTag(ormTag, "column")
+		if driver == DriverOracle {
 			column = strings.ToUpper(column)
 		}
 		if ok {
@@ -106,7 +118,7 @@ func getColumnIndexes(modelType reflect.Type, columnsName []string, driver strin
 	}
 	return
 }
-func findTag(tag string, key string) (string, bool) {
+func FindTag(tag string, key string) (string, bool) {
 	if has := strings.Contains(tag, key); has {
 		str1 := strings.Split(tag, ";")
 		num := len(str1)
