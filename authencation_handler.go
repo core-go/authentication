@@ -18,7 +18,7 @@ type AuthenticationHandler struct {
 	EncryptionKey string
 }
 
-func NewAuthenticationHandlerWithDecrypter(authenticator Authenticator, resource string, action string, logError func(context.Context, string), ip string, logService AuthActivityLogWriter, decrypter PasswordDecrypter, encryptionKey string) *AuthenticationHandler {
+func NewAuthenticationHandlerWithDecrypter(authenticator Authenticator, resource string, action string, logError func(context.Context, string), ip string, logWriter AuthActivityLogWriter, decrypter PasswordDecrypter, encryptionKey string) *AuthenticationHandler {
 	if len(ip) == 0 {
 		ip = "ip"
 	}
@@ -28,7 +28,7 @@ func NewAuthenticationHandlerWithDecrypter(authenticator Authenticator, resource
 	if len(action) == 0 {
 		action = "authenticate"
 	}
-	return &AuthenticationHandler{Authenticator: authenticator, Resource: resource, Action: action, LogError: logError, Ip: ip, LogWriter: logService, Decrypter: decrypter, EncryptionKey: encryptionKey}
+	return &AuthenticationHandler{Authenticator: authenticator, Resource: resource, Action: action, LogError: logError, Ip: ip, LogWriter: logWriter, Decrypter: decrypter, EncryptionKey: encryptionKey}
 }
 
 func NewAuthenticationHandler(authenticator Authenticator, logError func(context.Context, string), logService AuthActivityLogWriter) *AuthenticationHandler {
