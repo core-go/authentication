@@ -26,7 +26,7 @@ func NewAuthenticationHandlerWithDecrypter(authenticator Authenticator, resource
 		resource = "authentication"
 	}
 	if len(action) == 0 {
-		action = "signin"
+		action = "authenticate"
 	}
 	return &AuthenticationHandler{Authenticator: authenticator, Resource: resource, Action: action, LogError: logError, Ip: ip, LogWriter: logService, Decrypter: decrypter, EncryptionKey: encryptionKey}
 }
@@ -47,21 +47,21 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 	var user AuthInfo
 	er1 := json.NewDecoder(r.Body).Decode(&user)
 	if er1 != nil {
-		msg := "cannot decode authentication info: "+er1.Error()
 		if h.LogError != nil {
+			msg := "cannot decode authentication info: "+er1.Error()
 			h.LogError(r.Context(), msg)
 		}
-		respondString(w, r, http.StatusBadRequest, msg)
+		respondString(w, r, http.StatusBadRequest, "cannot decode authentication info")
 		return
 	}
 
 	if h.Decrypter != nil && len(h.EncryptionKey) > 0 {
 		if decodedPassword, er2 := h.Decrypter.Decrypt(user.Password, h.EncryptionKey); er2 != nil {
-			msg := "cannot decrypt password: "+er2.Error()
 			if h.LogError != nil {
+				msg := "cannot decrypt password: "+er2.Error()
 				h.LogError(r.Context(), msg)
 			}
-			respondString(w, r, http.StatusBadRequest, msg)
+			respondString(w, r, http.StatusBadRequest, "cannot decrypt password")
 			return
 		} else {
 			user.Password = decodedPassword
