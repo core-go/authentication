@@ -96,7 +96,7 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 				}
 			} else {
 				u := result.User
-				payload = UserAccountToPayload(ctx, *u, s.PayloadConfig)
+				payload = UserAccountToPayload(ctx, u, s.PayloadConfig)
 			}
 			token, er4 := s.TokenGenerator.GenerateToken(payload, s.TokenConfig.Secret, s.TokenConfig.Expires)
 			if er4 != nil {
@@ -215,7 +215,7 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 
 	tokenExpiredTime, jwtTokenExpires := SetTokenExpiredTime(user.AccessTimeFrom, user.AccessTimeTo, s.TokenConfig.Expires)
 	//tokenExpiredTime, jwtTokenExpires := s.setTokenExpiredTime(*user)
-	payload := ToPayload(ctx, *user, s.PayloadConfig)
+	payload := ToPayload(ctx, user, s.PayloadConfig)
 	//payload := StoredUser{UserId: user.UserId, Username: user.Username, Contact: user.Contact, UserType: user.UserType, Roles: user.Roles, Privileges: user.Privileges}
 	token, er4 := s.TokenGenerator.GenerateToken(payload, s.TokenConfig.Secret, jwtTokenExpires)
 	if er4 != nil {
@@ -303,13 +303,16 @@ func FromContext(ctx context.Context, key string) string {
 	}
 	return v
 }
-func UserAccountToPayload(ctx context.Context, u UserAccount, s PayloadConfig) map[string]interface{} {
+func UserAccountToPayload(ctx context.Context, u *UserAccount, s PayloadConfig) map[string]interface{} {
 	payload := make(map[string]interface{})
 	if len(s.Ip) > 0 {
 		ip := FromContext(ctx, s.Ip)
 		if len(ip) > 0 {
 			payload[s.Ip] = ip
 		}
+	}
+	if u == nil  {
+		return payload
 	}
 	if s.UserId != "" {
 		payload[s.UserId] = u.UserId
@@ -317,18 +320,21 @@ func UserAccountToPayload(ctx context.Context, u UserAccount, s PayloadConfig) m
 	if s.Username != "" {
 		payload[s.Username] = u.Username
 	}
-	if s.Contact != "" {
+	if s.Contact != "" && len(u.Contact) > 0 {
 		payload[s.Contact] = u.Contact
+		u.Contact = ""
 	}
-	if s.UserType != "" {
+	if s.UserType != "" && len(u.UserType) > 0 {
 		payload[s.UserType] = u.UserType
+		u.UserType = ""
 	}
-	if s.Roles != "" {
+	if s.Roles != "" && u.Roles != nil && len(*u.Roles) > 0 {
 		payload[s.Roles] = u.Roles
+		u.Roles = nil
 	}
 	return payload
 }
-func ToPayload(ctx context.Context, user UserInfo, s PayloadConfig) map[string]interface{} {
+func ToPayload(ctx context.Context, user *UserInfo, s PayloadConfig) map[string]interface{} {
 	payload := make(map[string]interface{})
 	if len(s.Ip) > 0 {
 		ip := FromContext(ctx, s.Ip)
@@ -336,23 +342,30 @@ func ToPayload(ctx context.Context, user UserInfo, s PayloadConfig) map[string]i
 			payload[s.Ip] = ip
 		}
 	}
-	if len(s.UserId) > 0 {
+	if user == nil {
+		return payload
+	}
+	if len(s.UserId) > 0 && len(user.UserId) > 0 {
 		payload[s.UserId] = user.UserId
 	}
-	if len(s.Username) > 0 {
+	if len(s.Username) > 0 && len(user.Username) > 0 {
 		payload[s.Username] = user.Username
 	}
-	if len(s.Contact) > 0 {
+	if len(s.Contact) > 0 && len(user.Contact) > 0{
 		payload[s.Contact] = user.Contact
+		user.Contact = ""
 	}
-	if len(s.UserType) > 0 {
+	if len(s.UserType) > 0 && len(user.UserType) > 0 {
 		payload[s.UserType] = user.UserType
+		user.UserType = ""
 	}
-	if len(s.Roles) > 0 {
+	if len(s.Roles) > 0 && user.Roles != nil && len(*user.Roles) > 0 {
 		payload[s.Roles] = user.Roles
+		user.Roles = nil
 	}
-	if len(s.Privileges) > 0 {
+	if len(s.Privileges) > 0 && user.Privileges != nil && len(*user.Privileges) > 0{
 		payload[s.Roles] = user.Privileges
+		user.Privileges = nil
 	}
 	return payload
 }
