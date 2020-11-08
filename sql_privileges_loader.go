@@ -17,7 +17,12 @@ type SqlPrivilegesLoader struct {
 	HandleDriver   bool
 	Driver         string
 }
-
+func NewPrivilegesLoader(db *sql.DB, query string, parameterCount int) *SqlPrivilegesLoader {
+	return NewSqlPrivilegesLoader(db, query, parameterCount, true, true)
+}
+func NewDefaultPrivilegesLoader(db *sql.DB, query string) *SqlPrivilegesLoader {
+	return NewSqlPrivilegesLoader(db, query, 0, true, true)
+}
 func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int, noSequence bool, handleDriver bool) *SqlPrivilegesLoader {
 	driver := GetDriver(db)
 	return &SqlPrivilegesLoader{DB: db, Query: query, ParameterCount: parameterCount, NoSequence: noSequence, HandleDriver: handleDriver, Driver: driver}
