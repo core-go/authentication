@@ -29,7 +29,7 @@ func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, 
 			params = append(params, id)
 		}
 	}
-	if getDriver(l.DB) == DRIVER_ORACLE {
+	if GetDriver(l.DB) == DRIVER_ORACLE {
 		for i :=0; i < len(params); i++ {
 			count := i+1
 			l.Query = strings.Replace(l.Query,"?",":val" + fmt.Sprintf("%v",count) ,1)
@@ -47,7 +47,7 @@ func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, 
 	// get list indexes column
 	modelTypes := reflect.TypeOf(models).Elem()
 	modelType := reflect.TypeOf(Module{})
-	indexes, er3 := getColumnIndexes(modelType, columns,getDriver(l.DB))
+	indexes, er3 := getColumnIndexes(modelType, columns, GetDriver(l.DB))
 	if er3 != nil {
 		return p0, er3
 	}

@@ -12,6 +12,7 @@ type SqlConfig struct {
 	SqlPass       string `mapstructure:"pass" json:"pass,omitempty" gorm:"column:pass" bson:"pass,omitempty" dynamodbav:"pass,omitempty" firestore:"pass,omitempty"`
 	SqlFail       string `mapstructure:"fail" json:"fail,omitempty" gorm:"column:fail" bson:"fail,omitempty" dynamodbav:"fail,omitempty" firestore:"fail,omitempty"`
 	DisableStatus string `mapstructure:"disable" json:"disable,omitempty" gorm:"column:disable" bson:"disable,omitempty" dynamodbav:"disable,omitempty" firestore:"disable,omitempty"`
+	SuspendedStatus string `mapstructure:"suspended" json:"suspended,omitempty" gorm:"column:suspended" bson:"suspended,omitempty" dynamodbav:"suspended,omitempty" firestore:"suspended,omitempty"`
 	NoTime        bool   `mapstructure:"no_time" json:"noTime,omitempty" gorm:"column:notime" bson:"noTime,omitempty" dynamodbav:"noTime,omitempty" firestore:"noTime,omitempty"`
 }
 type SqlUserInfoService struct {
@@ -20,6 +21,7 @@ type SqlUserInfoService struct {
 	SqlPass       string
 	SqlFail       string
 	DisableStatus string
+	SuspendedStatus string
 	NoTime        bool
 }
 
@@ -48,7 +50,7 @@ func (l SqlUserInfoService) GetUserInfo(ctx context.Context, auth AuthInfo) (*Us
 		return nil, er2
 	}
 	// get list indexes column
-	indexes, er3 := getColumnIndexes(modelType, columns,getDriver(l.DB))
+	indexes, er3 := getColumnIndexes(modelType, columns, GetDriver(l.DB))
 	if er3 != nil {
 		return nil, er3
 	}
@@ -59,6 +61,9 @@ func (l SqlUserInfoService) GetUserInfo(ctx context.Context, auth AuthInfo) (*Us
 	if len(tb) > 0 {
 		if c, ok := tb[0].(*UserInfo); ok {
 			if len(c.Status) > 0 {
+				if c.Status == l.SuspendedStatus {
+					c.Suspended = true
+				}
 				if c.Status == l.DisableStatus {
 					c.Disable = true
 				}
