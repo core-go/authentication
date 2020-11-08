@@ -38,7 +38,7 @@ func (l SqlPrivilegesReader) Privileges(ctx context.Context) ([]Privilege, error
 	// get list indexes column
 	modelTypes := reflect.TypeOf(models).Elem()
 	modelType := reflect.TypeOf(Module{})
-	indexes, er3 := getColumnIndexes(modelType, columns,getDriver(l.DB))
+	indexes, er3 := getColumnIndexes(modelType, columns, GetDriver(l.DB))
 	if er3 != nil {
 		return p0, er3
 	}
@@ -60,7 +60,7 @@ func (l SqlPrivilegesReader) Privileges(ctx context.Context) ([]Privilege, error
 	return p, nil
 }
 
-func getDriver(db *sql.DB) string {
+func GetDriver(db *sql.DB) string {
 	driver := reflect.TypeOf(db.Driver()).String()
 	switch driver {
 	case "*postgres.Driver":
