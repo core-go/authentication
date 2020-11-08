@@ -26,12 +26,12 @@ type SqlUserInfoService struct {
 	Driver          string
 }
 
-func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus string, noTime bool) *SqlUserInfoService {
+func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus string, suspendedStatus string, noTime bool) *SqlUserInfoService {
 	driver := GetDriver(db)
-	return &SqlUserInfoService{DB: db, Query: query, SqlPass: sqlPass, SqlFail: sqlFail, DisableStatus: disableStatus, NoTime: noTime, Driver: driver}
+	return &SqlUserInfoService{DB: db, Query: query, SqlPass: sqlPass, SqlFail: sqlFail, DisableStatus: disableStatus, SuspendedStatus: suspendedStatus, NoTime: noTime, Driver: driver}
 }
 func NewSqlUserInfoByConfig(db *sql.DB, c SqlConfig) *SqlUserInfoService {
-	return NewSqlUserInfoService(db, c.Query, c.SqlPass, c.SqlFail, c.DisableStatus, c.NoTime)
+	return NewSqlUserInfoService(db, c.Query, c.SqlPass, c.SqlFail, c.DisableStatus, c.SuspendedStatus, c.NoTime)
 }
 func (l SqlUserInfoService) GetUserInfo(ctx context.Context, auth AuthInfo) (*UserInfo, error) {
 	models := make([]UserInfo, 0)
