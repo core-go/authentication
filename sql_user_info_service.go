@@ -8,25 +8,27 @@ import (
 )
 
 type SqlConfig struct {
-	Query         string `mapstructure:"query" json:"query,omitempty" gorm:"column:query" bson:"query,omitempty" dynamodbav:"query,omitempty" firestore:"query,omitempty"`
-	SqlPass       string `mapstructure:"pass" json:"pass,omitempty" gorm:"column:pass" bson:"pass,omitempty" dynamodbav:"pass,omitempty" firestore:"pass,omitempty"`
-	SqlFail       string `mapstructure:"fail" json:"fail,omitempty" gorm:"column:fail" bson:"fail,omitempty" dynamodbav:"fail,omitempty" firestore:"fail,omitempty"`
-	DisableStatus string `mapstructure:"disable" json:"disable,omitempty" gorm:"column:disable" bson:"disable,omitempty" dynamodbav:"disable,omitempty" firestore:"disable,omitempty"`
+	Query           string `mapstructure:"query" json:"query,omitempty" gorm:"column:query" bson:"query,omitempty" dynamodbav:"query,omitempty" firestore:"query,omitempty"`
+	SqlPass         string `mapstructure:"pass" json:"pass,omitempty" gorm:"column:pass" bson:"pass,omitempty" dynamodbav:"pass,omitempty" firestore:"pass,omitempty"`
+	SqlFail         string `mapstructure:"fail" json:"fail,omitempty" gorm:"column:fail" bson:"fail,omitempty" dynamodbav:"fail,omitempty" firestore:"fail,omitempty"`
+	DisableStatus   string `mapstructure:"disable" json:"disable,omitempty" gorm:"column:disable" bson:"disable,omitempty" dynamodbav:"disable,omitempty" firestore:"disable,omitempty"`
 	SuspendedStatus string `mapstructure:"suspended" json:"suspended,omitempty" gorm:"column:suspended" bson:"suspended,omitempty" dynamodbav:"suspended,omitempty" firestore:"suspended,omitempty"`
-	NoTime        bool   `mapstructure:"no_time" json:"noTime,omitempty" gorm:"column:notime" bson:"noTime,omitempty" dynamodbav:"noTime,omitempty" firestore:"noTime,omitempty"`
+	NoTime          bool   `mapstructure:"no_time" json:"noTime,omitempty" gorm:"column:notime" bson:"noTime,omitempty" dynamodbav:"noTime,omitempty" firestore:"noTime,omitempty"`
 }
 type SqlUserInfoService struct {
-	DB            *sql.DB
-	Query         string
-	SqlPass       string
-	SqlFail       string
-	DisableStatus string
+	DB              *sql.DB
+	Query           string
+	SqlPass         string
+	SqlFail         string
+	DisableStatus   string
 	SuspendedStatus string
-	NoTime        bool
+	NoTime          bool
+	Driver          string
 }
 
 func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus string, noTime bool) *SqlUserInfoService {
-	return &SqlUserInfoService{DB: db, Query: query, SqlPass: sqlPass, SqlFail: sqlFail, DisableStatus: disableStatus, NoTime: noTime}
+	driver := GetDriver(db)
+	return &SqlUserInfoService{DB: db, Query: query, SqlPass: sqlPass, SqlFail: sqlFail, DisableStatus: disableStatus, NoTime: noTime, Driver: driver}
 }
 func NewSqlUserInfoByConfig(db *sql.DB, c SqlConfig) *SqlUserInfoService {
 	return NewSqlUserInfoService(db, c.Query, c.SqlPass, c.SqlFail, c.DisableStatus, c.NoTime)
@@ -50,7 +52,7 @@ func (l SqlUserInfoService) GetUserInfo(ctx context.Context, auth AuthInfo) (*Us
 		return nil, er2
 	}
 	// get list indexes column
-	indexes, er3 := getColumnIndexes(modelType, columns, GetDriver(l.DB))
+	indexes, er3 := GetColumnIndexes(modelType, columns, l.Driver)
 	if er3 != nil {
 		return nil, er3
 	}
