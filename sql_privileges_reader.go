@@ -20,7 +20,7 @@ type SqlPrivilegesReader struct {
 	NoSequence bool
 	Driver     string
 }
-func NewPrivilegesReader(db *sql.DB, query string, noSequence bool) *SqlPrivilegesReader {
+func NewPrivilegesReader(db *sql.DB, query string) *SqlPrivilegesReader {
 	return NewSqlPrivilegesReader(db, query, true)
 }
 func NewSqlPrivilegesReader(db *sql.DB, query string, noSequence bool) *SqlPrivilegesReader {
