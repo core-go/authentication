@@ -9,26 +9,38 @@ import (
 
 type AuthenticationHandler struct {
 	Authenticator Authenticator
+	Resource      string
+	Action        string
+	LogError      func(context.Context, string)
+	Ip            string
+	LogWriter     AuthActivityLogWriter
 	Decrypter     PasswordDecrypter
 	EncryptionKey string
-	LogWriter     AuthActivityLogWriter
-	Ip            string
 }
 
-func NewAuthenticationHandler(authenticationService Authenticator, decrypter PasswordDecrypter, encryptionKey string, logService AuthActivityLogWriter, ip string) *AuthenticationHandler {
-	return &AuthenticationHandler{authenticationService, decrypter, encryptionKey, logService, ip}
+func NewAuthenticationHandlerWithDecrypter(authenticator Authenticator, resource string, action string, logError func(context.Context, string), ip string, logService AuthActivityLogWriter, decrypter PasswordDecrypter, encryptionKey string) *AuthenticationHandler {
+	if len(ip) == 0 {
+		ip = "ip"
+	}
+	if len(resource) == 0 {
+		resource = "authentication"
+	}
+	if len(action) == 0 {
+		action = "signin"
+	}
+	return &AuthenticationHandler{Authenticator: authenticator, Resource: resource, Action: action, LogError: logError, Ip: ip, LogWriter: logService, Decrypter: decrypter, EncryptionKey: encryptionKey}
 }
 
-func NewDefaultAuthenticationHandler(authenticationService Authenticator) *AuthenticationHandler {
-	return &AuthenticationHandler{authenticationService, nil, "", nil, ""}
+func NewAuthenticationHandler(authenticator Authenticator, logError func(context.Context, string), logService AuthActivityLogWriter) *AuthenticationHandler {
+	return NewAuthenticationHandlerWithDecrypter(authenticator, "", "", logError, "", logService, nil, "")
 }
 
-func (c *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Request) {
+func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Request) {
 	ip := GetRemoteIp(r)
 	var ctx context.Context
 	ctx = r.Context()
-	if len(c.Ip) > 0 {
-		ctx = context.WithValue(ctx, c.Ip, ip)
+	if len(h.Ip) > 0 {
+		ctx = context.WithValue(ctx, h.Ip, ip)
 	}
 
 	var user AuthInfo
@@ -38,8 +50,8 @@ func (c *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if c.Decrypter != nil && len(c.EncryptionKey) > 0 {
-		if decodedPassword, er2 := c.Decrypter.Decrypt(user.Password, c.EncryptionKey); er2 != nil {
+	if h.Decrypter != nil && len(h.EncryptionKey) > 0 {
+		if decodedPassword, er2 := h.Decrypter.Decrypt(user.Password, h.EncryptionKey); er2 != nil {
 			RespondString(w, r, http.StatusBadRequest, "cannot decrypt password: "+er2.Error())
 			return
 		} else {
@@ -47,12 +59,15 @@ func (c *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	result, er3 := c.Authenticator.Authenticate(ctx, user)
+	result, er3 := h.Authenticator.Authenticate(ctx, user)
 	if er3 != nil {
 		result.Status = StatusSystemError
-		Respond(w, r, http.StatusOK, result, c.LogWriter, "Authentication", "Sign in", false, er3.Error())
+		if h.LogError != nil {
+			h.LogError(r.Context(), er3.Error())
+		}
+		Respond(w, r, http.StatusOK, result, h.LogWriter, h.Resource, h.Action, false, er3.Error())
 	} else {
-		Respond(w, r, http.StatusOK, result, c.LogWriter, "Authentication", "Sign in", true, "")
+		Respond(w, r, http.StatusOK, result, h.LogWriter, h.Resource, h.Action, true, "")
 	}
 }
 func GetRemoteIp(r *http.Request) string {
