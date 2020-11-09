@@ -67,7 +67,7 @@ func (l SqlPrivilegesReader) Privileges(ctx context.Context) ([]Privilege, error
 func GetDriver(db *sql.DB) string {
 	driver := reflect.TypeOf(db.Driver()).String()
 	switch driver {
-	case "*postgres.Driver":
+	case "*pq.Driver":
 		return DriverPostgres
 	case "*mysql.MySQLDriver":
 		return DriverMysql
