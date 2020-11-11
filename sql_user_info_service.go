@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -35,6 +36,15 @@ func NewSqlUserInfoByConfig(db *sql.DB, c SqlConfig) *SqlUserInfoService {
 }
 func (l SqlUserInfoService) GetUserInfo(ctx context.Context, auth AuthInfo) (*UserInfo, error) {
 	models := make([]UserInfo, 0)
+	if l.Driver == DriverOracle || l.Driver == DriverPostgres {
+		var x string
+		if l.Driver == DriverOracle {
+			x = ":val1"
+		} else {
+			x = "$1"
+		}
+		l.Query = strings.Replace(l.Query, "?", x, 1)
+	}
 	rows, er1 := l.DB.Query(l.Query, auth.Username)
 	if er1 != nil {
 		switch er1 {
