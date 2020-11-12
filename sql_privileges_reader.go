@@ -70,6 +70,9 @@ func (l SqlPrivilegesReader) Privileges(ctx context.Context) ([]Privilege, error
 }
 
 func GetDriver(db *sql.DB) string {
+	if db == nil {
+		return DriverNotSupport
+	}
 	driver := reflect.TypeOf(db.Driver()).String()
 	switch driver {
 	case "*pq.Driver":
