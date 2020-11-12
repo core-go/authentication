@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"reflect"
 	"strings"
 	"time"
@@ -27,24 +28,41 @@ type SqlUserInfoService struct {
 	Driver          string
 }
 
-func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus string, suspendedStatus string, noTime bool) *SqlUserInfoService {
+func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus string, suspendedStatus string, noTime bool, handleDriver bool) *SqlUserInfoService {
 	driver := GetDriver(db)
+	if handleDriver {
+		query = ReplaceQueryArgs(driver, query)
+	}
 	return &SqlUserInfoService{DB: db, Query: query, SqlPass: sqlPass, SqlFail: sqlFail, DisableStatus: disableStatus, SuspendedStatus: suspendedStatus, NoTime: noTime, Driver: driver}
 }
+func ReplaceQueryArgs(driver string, query string) string {
+	if driver == DriverOracle || driver == DriverPostgres {
+		var x string
+		if driver == DriverOracle {
+			x = ":val"
+		} else {
+			x = "$"
+		}
+		i := 1
+		k := strings.Index(query, "?")
+		if k >= 0 {
+			for {
+				query = strings.Replace(query, "?", x+fmt.Sprintf("%v", i), 1)
+				i = i + 1
+				k := strings.Index(query, "?")
+				if k < 0 {
+					return query
+				}
+			}
+		}
+	}
+	return query
+}
 func NewSqlUserInfoByConfig(db *sql.DB, c SqlConfig) *SqlUserInfoService {
-	return NewSqlUserInfoService(db, c.Query, c.SqlPass, c.SqlFail, c.DisableStatus, c.SuspendedStatus, c.NoTime)
+	return NewSqlUserInfoService(db, c.Query, c.SqlPass, c.SqlFail, c.DisableStatus, c.SuspendedStatus, c.NoTime, true)
 }
 func (l SqlUserInfoService) GetUserInfo(ctx context.Context, auth AuthInfo) (*UserInfo, error) {
 	models := make([]UserInfo, 0)
-	if l.Driver == DriverOracle || l.Driver == DriverPostgres {
-		var x string
-		if l.Driver == DriverOracle {
-			x = ":val1"
-		} else {
-			x = "$1"
-		}
-		l.Query = strings.Replace(l.Query, "?", x, 1)
-	}
 	rows, er1 := l.DB.Query(l.Query, auth.Username)
 	if er1 != nil {
 		switch er1 {
