@@ -3,9 +3,7 @@ package auth
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"reflect"
-	"strings"
 	"time"
 )
 
@@ -35,29 +33,7 @@ func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus st
 	}
 	return &SqlUserInfoService{DB: db, Query: query, SqlPass: sqlPass, SqlFail: sqlFail, DisableStatus: disableStatus, SuspendedStatus: suspendedStatus, NoTime: noTime, Driver: driver}
 }
-func ReplaceQueryArgs(driver string, query string) string {
-	if driver == DriverOracle || driver == DriverPostgres {
-		var x string
-		if driver == DriverOracle {
-			x = ":val"
-		} else {
-			x = "$"
-		}
-		i := 1
-		k := strings.Index(query, "?")
-		if k >= 0 {
-			for {
-				query = strings.Replace(query, "?", x+fmt.Sprintf("%v", i), 1)
-				i = i + 1
-				k := strings.Index(query, "?")
-				if k < 0 {
-					return query
-				}
-			}
-		}
-	}
-	return query
-}
+
 func NewSqlUserInfoByConfig(db *sql.DB, c SqlConfig) *SqlUserInfoService {
 	return NewSqlUserInfoService(db, c.Query, c.SqlPass, c.SqlFail, c.DisableStatus, c.SuspendedStatus, c.NoTime, true)
 }
