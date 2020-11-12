@@ -3,7 +3,9 @@ package auth
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"reflect"
+	"strings"
 )
 
 const (
@@ -81,4 +83,28 @@ func GetDriver(db *sql.DB) string {
 	default:
 		return DriverNotSupport
 	}
+}
+
+func ReplaceQueryArgs(driver string, query string) string {
+	if driver == DriverOracle || driver == DriverPostgres {
+		var x string
+		if driver == DriverOracle {
+			x = ":val"
+		} else {
+			x = "$"
+		}
+		i := 1
+		k := strings.Index(query, "?")
+		if k >= 0 {
+			for {
+				query = strings.Replace(query, "?", x+fmt.Sprintf("%v", i), 1)
+				i = i + 1
+				k := strings.Index(query, "?")
+				if k < 0 {
+					return query
+				}
+			}
+		}
+	}
+	return query
 }
