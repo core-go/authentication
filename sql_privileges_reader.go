@@ -21,10 +21,13 @@ type SqlPrivilegesReader struct {
 	Driver     string
 }
 func NewPrivilegesReader(db *sql.DB, query string) *SqlPrivilegesReader {
-	return NewSqlPrivilegesReader(db, query, true)
+	return NewSqlPrivilegesReader(db, query, true, true)
 }
-func NewSqlPrivilegesReader(db *sql.DB, query string, noSequence bool) *SqlPrivilegesReader {
+func NewSqlPrivilegesReader(db *sql.DB, query string, noSequence bool, handleDriver bool) *SqlPrivilegesReader {
 	driver := GetDriver(db)
+	if handleDriver {
+		query = ReplaceQueryArgs(driver, query)
+	}
 	return &SqlPrivilegesReader{DB: db, Query: query, NoSequence: noSequence, Driver: driver}
 }
 func (l SqlPrivilegesReader) Privileges(ctx context.Context) ([]Privilege, error) {

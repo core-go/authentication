@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"reflect"
-	"strconv"
 	"strings"
 )
 
@@ -25,6 +24,9 @@ func NewDefaultPrivilegesLoader(db *sql.DB, query string) *SqlPrivilegesLoader {
 }
 func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int, noSequence bool, handleDriver bool) *SqlPrivilegesLoader {
 	driver := GetDriver(db)
+	if handleDriver {
+		query = ReplaceQueryArgs(driver, query)
+	}
 	return &SqlPrivilegesLoader{DB: db, Query: query, ParameterCount: parameterCount, NoSequence: noSequence, HandleDriver: handleDriver, Driver: driver}
 }
 func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, error) {
@@ -38,20 +40,6 @@ func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, 
 		}
 	}
 	driver := l.Driver
-	if l.HandleDriver {
-		if driver == DriverOracle || driver == DriverPostgres {
-			var x string
-			if driver == DriverOracle {
-				x = ":val"
-			} else {
-				x = "$"
-			}
-			for i := 0; i < len(params); i++ {
-				count := i + 1
-				l.Query = strings.Replace(l.Query, "?", x+strconv.Itoa(count), 1)
-			}
-		}
-	}
 	rows, er1 := l.DB.Query(l.Query, params...)
 	if er1 != nil {
 		return p0, er1
