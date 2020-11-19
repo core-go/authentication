@@ -30,6 +30,7 @@ func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus st
 	driver := GetDriver(db)
 	if handleDriver {
 		query = ReplaceQueryArgs(driver, query)
+		sqlPass = ReplaceQueryArgs(driver,sqlPass)
 	}
 	return &SqlUserInfoService{DB: db, Query: query, SqlPass: sqlPass, SqlFail: sqlFail, DisableStatus: disableStatus, SuspendedStatus: suspendedStatus, NoTime: noTime, Driver: driver}
 }
