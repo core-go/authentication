@@ -2,25 +2,32 @@ package auth
 
 import (
 	"errors"
-	"strconv"
 	"time"
+	"strconv"
 )
 
 type DefaultTokenWhitelistTokenService struct {
+	Secret       string
+	TokenIp      string
 	TokenPrefix  string
 	TokenService TokenVerifier
 	CacheService CacheService
 }
 
-func NewTokenWhitelistTokenService(keyPrefix string, tokenService TokenVerifier, cacheService CacheService) *DefaultTokenWhitelistTokenService {
-	return &DefaultTokenWhitelistTokenService{keyPrefix, tokenService, cacheService}
+func NewTokenWhitelistTokenService(secret string, tokenIp string, keyPrefix string, tokenService TokenVerifier, cacheService CacheService) *DefaultTokenWhitelistTokenService {
+	return &DefaultTokenWhitelistTokenService{secret, tokenIp, keyPrefix, tokenService, cacheService}
 }
+
 func (b *DefaultTokenWhitelistTokenService) generateKey(token string) string {
 	return b.TokenPrefix + "::token::" + token
 }
 
-func (b *DefaultTokenWhitelistTokenService) Add(token, secret, reason string) error {
-	_, _, eta, err := b.TokenService.VerifyToken(token, secret)
+func (b *DefaultTokenWhitelistTokenService) generateKeyForId(id string) string {
+	return b.TokenPrefix + "::token::" + id
+}
+
+func (b *DefaultTokenWhitelistTokenService) Add(token string, id string) error {
+	_, _, eta, err := b.TokenService.VerifyToken(token, b.Secret)
 	if err != nil {
 		return err
 	}
@@ -32,31 +39,34 @@ func (b *DefaultTokenWhitelistTokenService) Add(token, secret, reason string) er
 	expire := time.Unix(eta, 0)
 	dur := expire.Sub(now)
 
-	key := b.generateKey(token)
-	value := reason + JoinChar + strconv.Itoa(int(now.Unix()))
-	return b.CacheService.Put(key, value, dur)
+	key := b.generateKeyForId(id)
+	return b.CacheService.Put(key, token, dur)
 }
 
-func (b *DefaultTokenWhitelistTokenService) Check(token string) bool {
-	tokenKey := b.generateKey(token)
+func (b *DefaultTokenWhitelistTokenService) Check(id string, token string) bool {
+	key := b.generateKeyForId(id)
 
-	keys := []string{tokenKey}
-	value, _, err := b.CacheService.GetManyStrings(keys)
+	value, err := b.CacheService.Get(key)
 	if err != nil {
 		return false
 	}
-	if len(value[tokenKey]) > 0 {
-		//index := strings.Index(value[tokenKey], JoinChar)
-		//reason := value[tokenKey][0:index]
-		//strDate := value[tokenKey][index+1:]
-		//
-		//i, err := strconv.ParseInt(strDate, 10, 64)
-		//if err == nil {
-		//	tmDate := time.Unix(i, 0)
-		//	if tmDate.Sub(createAt) > 0 {
-		//		return reason
-		//	}
-		return true
+	if value != nil {
+		if tokenStore, ok := value.(string); ok {
+			tokenStore, _ := strconv.Unquote(tokenStore)
+
+			payloadStore, _, _, err1 := b.TokenService.VerifyToken(tokenStore, b.Secret)
+			payload, _, _, err2 := b.TokenService.VerifyToken(token, b.Secret)
+			if err1 != nil || err2 != nil {
+				return false
+			}
+			ipStore, ok1 := payloadStore[b.TokenIp];
+			ip, ok2 := payload[b.TokenIp];
+			if ok1 && ok2 {
+				if ip == ipStore {
+					return true
+				}
+			}
+		}
 	}
 	return false
 }
