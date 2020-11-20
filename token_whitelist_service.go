@@ -1,6 +1,6 @@
 package auth
 
 type TokenWhitelistService interface {
-	Add(token string, id string) error
+	Add(id string, token string) error
 	Check(id string, token string) bool
 }

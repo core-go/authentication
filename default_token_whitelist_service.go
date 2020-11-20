@@ -2,8 +2,8 @@ package auth
 
 import (
 	"errors"
-	"time"
 	"strconv"
+	"time"
 )
 
 type DefaultTokenWhitelistTokenService struct {
@@ -12,10 +12,11 @@ type DefaultTokenWhitelistTokenService struct {
 	TokenPrefix  string
 	TokenService TokenVerifier
 	CacheService CacheService
+	Level        int
 }
 
-func NewTokenWhitelistTokenService(secret string, tokenIp string, keyPrefix string, tokenService TokenVerifier, cacheService CacheService) *DefaultTokenWhitelistTokenService {
-	return &DefaultTokenWhitelistTokenService{secret, tokenIp, keyPrefix, tokenService, cacheService}
+func NewTokenWhitelistTokenService(secret string, tokenIp string, keyPrefix string, tokenService TokenVerifier, cacheService CacheService, level int) *DefaultTokenWhitelistTokenService {
+	return &DefaultTokenWhitelistTokenService{secret, tokenIp, keyPrefix, tokenService, cacheService, level}
 }
 
 func (b *DefaultTokenWhitelistTokenService) generateKey(token string) string {
@@ -26,7 +27,7 @@ func (b *DefaultTokenWhitelistTokenService) generateKeyForId(id string) string {
 	return b.TokenPrefix + "::token::" + id
 }
 
-func (b *DefaultTokenWhitelistTokenService) Add(token string, id string) error {
+func (b *DefaultTokenWhitelistTokenService) Add(id string, token string) error {
 	_, _, eta, err := b.TokenService.VerifyToken(token, b.Secret)
 	if err != nil {
 		return err
@@ -52,6 +53,9 @@ func (b *DefaultTokenWhitelistTokenService) Check(id string, token string) bool 
 	}
 	if value != nil {
 		if tokenStore, ok := value.(string); ok {
+			if b.Level != 0 && tokenStore != token {
+				return false
+			}
 			tokenStore, _ := strconv.Unquote(tokenStore)
 
 			payloadStore, _, _, err1 := b.TokenService.VerifyToken(tokenStore, b.Secret)
@@ -59,8 +63,8 @@ func (b *DefaultTokenWhitelistTokenService) Check(id string, token string) bool 
 			if err1 != nil || err2 != nil {
 				return false
 			}
-			ipStore, ok1 := payloadStore[b.TokenIp];
-			ip, ok2 := payload[b.TokenIp];
+			ipStore, ok1 := payloadStore[b.TokenIp]
+			ip, ok2 := payload[b.TokenIp]
 			if ok1 && ok2 {
 				if ip == ipStore {
 					return true
