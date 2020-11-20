@@ -53,10 +53,13 @@ func (b *DefaultTokenWhitelistTokenService) Check(id string, token string) bool 
 	}
 	if value != nil {
 		if tokenStore, ok := value.(string); ok {
-			if b.Level != 0 && tokenStore != token {
-				return false
-			}
 			tokenStore, _ := strconv.Unquote(tokenStore)
+			if b.Level != 0 {
+				if tokenStore != token{
+					return false
+				}
+				return true
+			}
 
 			payloadStore, _, _, err1 := b.TokenService.VerifyToken(tokenStore, b.Secret)
 			payload, _, _, err2 := b.TokenService.VerifyToken(token, b.Secret)
