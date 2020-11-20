@@ -116,7 +116,6 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 		return result, er1
 	}
 	if user == nil {
-		result.Message = "User does not exist"
 		return result, er1
 	}
 
