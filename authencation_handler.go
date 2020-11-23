@@ -3,8 +3,13 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net"
 	"net/http"
+	"reflect"
+	"strconv"
+	"strings"
 )
 
 type AuthenticationHandler struct {
@@ -46,14 +51,49 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 	}
 
 	var user AuthInfo
-	er1 := json.NewDecoder(r.Body).Decode(&user)
-	if er1 != nil {
-		if h.LogError != nil {
-			msg := "cannot decode authentication info: " + er1.Error()
-			h.LogError(r.Context(), msg)
+	if strings.Contains(r.Header.Get("Content-Type"), "multipart/form-data") {
+		if err := r.ParseMultipartForm (1073741824); err != nil {
+			fmt.Fprintf(w, "ParseForm() err: %v", err)
+			return
 		}
-		respondString(w, r, http.StatusBadRequest, "cannot decode authentication info")
-		return
+		modelType:= reflect.TypeOf(user)
+		mapIndexModels, err := GetIndexesByTagJson(modelType)
+		if err != nil {
+			if h.LogError != nil {
+				msg := "cannot decode authentication info: " + err.Error()
+				h.LogError(r.Context(), msg)
+			}
+			respondString(w, r, http.StatusBadRequest, "cannot decode authentication info")
+			return
+		}
+
+		postForm := r.PostForm
+		userV := reflect.Indirect(reflect.ValueOf(&user))
+		for k, v := range postForm {
+			if index,ok:= mapIndexModels[k];ok{
+				idType :=userV.Field(index).Type().String()
+				if strings.Index(idType, "int") >= 0 {
+					valueField, err := ParseIntWithType(v[0], idType)
+					if err != nil {
+						http.Error(w, "invalid key: "+k, http.StatusBadRequest)
+						return
+					}
+					userV.Field(index).Set(reflect.ValueOf(valueField))
+				}else{
+					userV.Field(index).Set(reflect.ValueOf(v[0]))
+				}
+			}
+		}
+	} else {
+		er1 := json.NewDecoder(r.Body).Decode(&user)
+		if er1 != nil {
+			if h.LogError != nil {
+				msg := "cannot decode authentication info: " + er1.Error()
+				h.LogError(r.Context(), msg)
+			}
+			respondString(w, r, http.StatusBadRequest, "cannot decode authentication info")
+			return
+		}
 	}
 
 	if h.Decrypter != nil && len(h.EncryptionKey) > 0 {
@@ -78,7 +118,7 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 		respond(w, r, http.StatusOK, result, h.LogWriter, h.Resource, h.Action, false, er3.Error())
 	} else {
 		if h.TokenWhitelistService != nil {
-			h.TokenWhitelistService.Add(result.User.UserId, result.User.Token)
+			h.TokenWhitelistService.Add(result.User.UserId, result.User.Token,"")
 		}
 		respond(w, r, http.StatusOK, result, h.LogWriter, h.Resource, h.Action, true, "")
 	}
@@ -89,4 +129,31 @@ func GetRemoteIp(r *http.Request) string {
 		remoteIP = r.RemoteAddr
 	}
 	return remoteIP
+}
+
+func GetIndexesByTagJson(modelType reflect.Type) (map[string]int, error) {
+	mapp := make(map[string]int, 0)
+	if modelType.Kind() != reflect.Struct {
+		return mapp, errors.New("bad type")
+	}
+	for i := 0; i < modelType.NumField(); i++ {
+		field := modelType.Field(i)
+		tagJson := field.Tag.Get("json")
+		tagJson = strings.Split(tagJson,",")[0]
+		if len(tagJson) > 0 {
+			mapp[tagJson] = i
+		}
+	}
+	return mapp, nil
+}
+
+func ParseIntWithType(value string, idType string) (v interface{}, err error) {
+	switch idType {
+	case "int64", "*int64":
+		return strconv.ParseInt(value, 10, 64)
+	case "int", "int32", "*int32":
+		return strconv.Atoi(value)
+	default:
+	}
+	return value, nil
 }
