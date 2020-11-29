@@ -118,7 +118,7 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 		respond(w, r, http.StatusOK, result, h.LogWriter, h.Resource, h.Action, false, er3.Error())
 	} else {
 		if h.TokenWhitelistService != nil {
-			h.TokenWhitelistService.Add(result.User.UserId, result.User.Token,"")
+			h.TokenWhitelistService.Add(result.User.UserId, result.User.Token)
 		}
 		respond(w, r, http.StatusOK, result, h.LogWriter, h.Resource, h.Action, true, "")
 	}
