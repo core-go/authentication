@@ -8,25 +8,25 @@ import (
 
 const JoinChar = "-"
 
-type DefaultTokenBlacklistTokenService struct {
+type DefaultTokenBlacklistChecker struct {
 	TokenPrefix  string
 	TokenExpires int64
 	CacheService CacheService
 }
 
-func NewTokenBlacklistTokenService(keyPrefix string, tokenExpires int64, cacheService CacheService) *DefaultTokenBlacklistTokenService {
-	return &DefaultTokenBlacklistTokenService{keyPrefix, tokenExpires, cacheService}
+func NewTokenBlacklistChecker(keyPrefix string, tokenExpires int64, cacheService CacheService) *DefaultTokenBlacklistChecker {
+	return &DefaultTokenBlacklistChecker{keyPrefix, tokenExpires, cacheService}
 }
 
-func (b *DefaultTokenBlacklistTokenService) generateKey(token string) string {
+func (b *DefaultTokenBlacklistChecker) generateKey(token string) string {
 	return b.TokenPrefix + "::token::" + token
 }
 
-func (b *DefaultTokenBlacklistTokenService) generateKeyForId(id string) string {
+func (b *DefaultTokenBlacklistChecker) generateKeyForId(id string) string {
 	return b.TokenPrefix + "::token::" + id
 }
 
-func (b *DefaultTokenBlacklistTokenService) Revoke(token string, reason string, expiredDate time.Time) error {
+func (b *DefaultTokenBlacklistChecker) Revoke(token string, reason string, expiredDate time.Time) error {
 	key := b.generateKey(token)
 	var value string
 	if len(reason) > 0 {
@@ -44,14 +44,14 @@ func (b *DefaultTokenBlacklistTokenService) Revoke(token string, reason string, 
 	}
 }
 
-func (b *DefaultTokenBlacklistTokenService) RevokeAllTokens(id string, reason string) error {
+func (b *DefaultTokenBlacklistChecker) RevokeAllTokens(id string, reason string) error {
 	key := b.generateKeyForId(id)
 	today := time.Now()
 	value := reason + JoinChar + strconv.Itoa(int(today.Unix()))
 	return b.CacheService.Put(key, value, time.Duration(b.TokenExpires)*time.Second)
 }
 
-func (b *DefaultTokenBlacklistTokenService) Check(id string, token string, createAt time.Time) string {
+func (b *DefaultTokenBlacklistChecker) Check(id string, token string, createAt time.Time) string {
 	idKey := b.generateKeyForId(id)
 	tokenKey := b.generateKey(token)
 

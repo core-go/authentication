@@ -18,15 +18,19 @@ type AuthenticationHandler struct {
 	Action                string
 	LogError              func(context.Context, string)
 	Ip                    string
-	TokenWhitelistService TokenWhitelistService
+	UserId                string
+	TokenWhitelistChecker TokenWhitelistChecker
 	LogWriter             AuthActivityLogWriter
 	Decrypter             PasswordDecrypter
 	EncryptionKey         string
 }
 
-func NewAuthenticationHandlerWithDecrypter(authenticator Authenticator, resource string, action string, logError func(context.Context, string), ip string, tokenWhitelistService TokenWhitelistService,logWriter AuthActivityLogWriter, decrypter PasswordDecrypter, encryptionKey string) *AuthenticationHandler {
+func NewAuthenticationHandlerWithDecrypter(authenticator Authenticator, resource string, action string, logError func(context.Context, string), ip string, userId string, tokenWhitelistService TokenWhitelistChecker, logWriter AuthActivityLogWriter, decrypter PasswordDecrypter, encryptionKey string) *AuthenticationHandler {
 	if len(ip) == 0 {
 		ip = "ip"
+	}
+	if len(userId) == 0 {
+		userId = "userId"
 	}
 	if len(resource) == 0 {
 		resource = "authentication"
@@ -34,11 +38,11 @@ func NewAuthenticationHandlerWithDecrypter(authenticator Authenticator, resource
 	if len(action) == 0 {
 		action = "authenticate"
 	}
-	return &AuthenticationHandler{Authenticator: authenticator, Resource: resource, Action: action, LogError: logError, Ip: ip,TokenWhitelistService: tokenWhitelistService, LogWriter: logWriter, Decrypter: decrypter, EncryptionKey: encryptionKey}
+	return &AuthenticationHandler{Authenticator: authenticator, Resource: resource, Action: action, LogError: logError, Ip: ip, UserId: userId, TokenWhitelistChecker: tokenWhitelistService, LogWriter: logWriter, Decrypter: decrypter, EncryptionKey: encryptionKey}
 }
 
-func NewAuthenticationHandler(authenticator Authenticator, logError func(context.Context, string), logService AuthActivityLogWriter, tokenWhitelistService TokenWhitelistService) *AuthenticationHandler {
-	return NewAuthenticationHandlerWithDecrypter(authenticator, "", "", logError, "", tokenWhitelistService, logService, nil, "")
+func NewAuthenticationHandler(authenticator Authenticator, logError func(context.Context, string), logService AuthActivityLogWriter, tokenWhitelistService TokenWhitelistChecker) *AuthenticationHandler {
+	return NewAuthenticationHandlerWithDecrypter(authenticator, "authentication", "authenticate", logError, "ip", "userId", tokenWhitelistService, logService, nil, "")
 }
 
 func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Request) {
@@ -52,11 +56,11 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 
 	var user AuthInfo
 	if strings.Contains(r.Header.Get("Content-Type"), "multipart/form-data") {
-		if err := r.ParseMultipartForm (1073741824); err != nil {
+		if err := r.ParseMultipartForm(1073741824); err != nil {
 			fmt.Fprintf(w, "ParseForm() err: %v", err)
 			return
 		}
-		modelType:= reflect.TypeOf(user)
+		modelType := reflect.TypeOf(user)
 		mapIndexModels, err := GetIndexesByTagJson(modelType)
 		if err != nil {
 			if h.LogError != nil {
@@ -70,8 +74,8 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 		postForm := r.PostForm
 		userV := reflect.Indirect(reflect.ValueOf(&user))
 		for k, v := range postForm {
-			if index,ok:= mapIndexModels[k];ok{
-				idType :=userV.Field(index).Type().String()
+			if index, ok := mapIndexModels[k]; ok {
+				idType := userV.Field(index).Type().String()
 				if strings.Index(idType, "int") >= 0 {
 					valueField, err := ParseIntWithType(v[0], idType)
 					if err != nil {
@@ -79,7 +83,7 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 						return
 					}
 					userV.Field(index).Set(reflect.ValueOf(valueField))
-				}else{
+				} else {
 					userV.Field(index).Set(reflect.ValueOf(v[0]))
 				}
 			}
@@ -117,8 +121,12 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 		}
 		respond(w, r, http.StatusOK, result, h.LogWriter, h.Resource, h.Action, false, er3.Error())
 	} else {
-		if h.TokenWhitelistService != nil {
-			h.TokenWhitelistService.Add(result.User.UserId, result.User.Token)
+		if h.TokenWhitelistChecker != nil {
+			h.TokenWhitelistChecker.Add(result.User.UserId, result.User.Token)
+		}
+		if len(h.UserId) > 0 && result.User != nil && len(result.User.UserId) > 0 {
+			ctx = context.WithValue(ctx, h.UserId, result.User.UserId)
+			r = r.WithContext(ctx)
 		}
 		respond(w, r, http.StatusOK, result, h.LogWriter, h.Resource, h.Action, true, "")
 	}
@@ -139,7 +147,7 @@ func GetIndexesByTagJson(modelType reflect.Type) (map[string]int, error) {
 	for i := 0; i < modelType.NumField(); i++ {
 		field := modelType.Field(i)
 		tagJson := field.Tag.Get("json")
-		tagJson = strings.Split(tagJson,",")[0]
+		tagJson = strings.Split(tagJson, ",")[0]
 		if len(tagJson) > 0 {
 			mapp[tagJson] = i
 		}

@@ -11,20 +11,20 @@ type SignOutHandler struct {
 	Resource              string
 	Action                string
 	Secret                string
-	TokenBlacklistService TokenBlacklistService
+	TokenBlacklistChecker TokenBlacklistChecker
 	LogWriter             AuthActivityLogWriter
 }
-func NewDefaultSignOutHandler(tokenVerifier TokenVerifier, secret string, tokenBlacklistService TokenBlacklistService, logWriter AuthActivityLogWriter) *SignOutHandler {
+func NewDefaultSignOutHandler(tokenVerifier TokenVerifier, secret string, tokenBlacklistService TokenBlacklistChecker, logWriter AuthActivityLogWriter) *SignOutHandler {
 	return NewSignOutHandler(tokenVerifier, "", "", secret, tokenBlacklistService, logWriter)
 }
-func NewSignOutHandler(tokenVerifier TokenVerifier, resource string, action string, secret string, tokenBlacklistService TokenBlacklistService, logWriter AuthActivityLogWriter) *SignOutHandler {
+func NewSignOutHandler(tokenVerifier TokenVerifier, resource string, action string, secret string, tokenBlacklistService TokenBlacklistChecker, logWriter AuthActivityLogWriter) *SignOutHandler {
 	if len(resource) == 0 {
 		resource = "authentication"
 	}
 	if len(action) == 0 {
 		action = "signout"
 	}
-	return &SignOutHandler{TokenVerifier: tokenVerifier, Resource: resource, Action: action, Secret: secret, TokenBlacklistService: tokenBlacklistService, LogWriter: logWriter}
+	return &SignOutHandler{TokenVerifier: tokenVerifier, Resource: resource, Action: action, Secret: secret, TokenBlacklistChecker: tokenBlacklistService, LogWriter: logWriter}
 }
 func (h *SignOutHandler) SignOut(w http.ResponseWriter, r *http.Request) {
 	data := r.Header["Authorization"]
@@ -42,14 +42,14 @@ func (h *SignOutHandler) SignOut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.TokenBlacklistService == nil {
+	if h.TokenBlacklistChecker == nil {
 		respondString(w, r, http.StatusInternalServerError, "No service to sign out")
 		return
 	}
 
 	expiresTime := time.Unix(expiresAt, 0)
 
-	er2 := h.TokenBlacklistService.Revoke(token, "The token has signed out.", expiresTime)
+	er2 := h.TokenBlacklistChecker.Revoke(token, "The token has signed out.", expiresTime)
 	if er2 != nil {
 		if h.LogWriter != nil {
 			h.LogWriter.Write(r.Context(), h.Resource, h.Action, false, er2.Error())

@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-type DefaultTokenWhitelistTokenService struct {
+type DefaultTokenWhitelistChecker struct {
 	Secret       string
 	TokenIp      string
 	TokenPrefix  string
@@ -15,19 +15,19 @@ type DefaultTokenWhitelistTokenService struct {
 	Level        int
 }
 
-func NewTokenWhitelistTokenService(secret string, tokenIp string, keyPrefix string, tokenService TokenVerifier, cacheService CacheService, level int) *DefaultTokenWhitelistTokenService {
-	return &DefaultTokenWhitelistTokenService{secret, tokenIp, keyPrefix, tokenService, cacheService, level}
+func NewTokenWhitelistChecker(secret string, tokenIp string, keyPrefix string, tokenService TokenVerifier, cacheService CacheService, level int) *DefaultTokenWhitelistChecker {
+	return &DefaultTokenWhitelistChecker{secret, tokenIp, keyPrefix, tokenService, cacheService, level}
 }
 
-func (b *DefaultTokenWhitelistTokenService) generateKey(token string) string {
+func (b *DefaultTokenWhitelistChecker) generateKey(token string) string {
 	return b.TokenPrefix + "::token::" + token
 }
 
-func (b *DefaultTokenWhitelistTokenService) generateKeyForId(id string) string {
+func (b *DefaultTokenWhitelistChecker) generateKeyForId(id string) string {
 	return b.TokenPrefix + "::token::" + id
 }
 
-func (b *DefaultTokenWhitelistTokenService) Add(id string, token string) error {
+func (b *DefaultTokenWhitelistChecker) Add(id string, token string) error {
 	_, _, eta, err := b.TokenService.VerifyToken(token, b.Secret)
 	if err != nil {
 		return err
@@ -44,7 +44,7 @@ func (b *DefaultTokenWhitelistTokenService) Add(id string, token string) error {
 	return b.CacheService.Put(key, token, dur)
 }
 
-func (b *DefaultTokenWhitelistTokenService) Check(id string, token string) bool {
+func (b *DefaultTokenWhitelistChecker) Check(id string, token string) bool {
 	key := b.generateKeyForId(id)
 
 	value, err := b.CacheService.Get(key)
