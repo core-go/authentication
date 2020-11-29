@@ -12,13 +12,15 @@ type PrivilegesByEntityHandler struct {
 	Offset    int
 	LogWriter AuthActivityLogWriter
 }
-
-func NewPrivilegesByEntityHandler(loader PrivilegesLoader, resource string, action string, offset int, logWriter AuthActivityLogWriter) *PrivilegesByEntityHandler {
+func NewPrivilegesByEntityHandler(loader PrivilegesLoader) *PrivilegesByEntityHandler {
+	return NewDefaultPrivilegesByEntityHandler(loader, "", "", 0, nil)
+}
+func NewDefaultPrivilegesByEntityHandler(loader PrivilegesLoader, resource string, action string, offset int, logWriter AuthActivityLogWriter) *PrivilegesByEntityHandler {
 	if len(resource) == 0 {
-		resource = "Privileges"
+		resource = "privilege"
 	}
 	if len(action) == 0 {
-		action = "All"
+		action = "all"
 	}
 	h := PrivilegesByEntityHandler{Loader: loader, Resource: resource, Action: action, Offset: offset, LogWriter: logWriter}
 	return &h

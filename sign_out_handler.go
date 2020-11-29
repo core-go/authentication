@@ -15,7 +15,7 @@ type SignOutHandler struct {
 	LogWriter             AuthActivityLogWriter
 }
 func NewDefaultSignOutHandler(tokenVerifier TokenVerifier, secret string, tokenBlacklistService TokenBlacklistChecker, logWriter AuthActivityLogWriter) *SignOutHandler {
-	return NewSignOutHandler(tokenVerifier, "", "", secret, tokenBlacklistService, logWriter)
+	return NewSignOutHandler(tokenVerifier, "authentication", "signout", secret, tokenBlacklistService, logWriter)
 }
 func NewSignOutHandler(tokenVerifier TokenVerifier, resource string, action string, secret string, tokenBlacklistService TokenBlacklistChecker, logWriter AuthActivityLogWriter) *SignOutHandler {
 	if len(resource) == 0 {

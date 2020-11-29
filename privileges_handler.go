@@ -8,12 +8,15 @@ type PrivilegesHandler struct {
 	Action    string
 	LogWriter AuthActivityLogWriter
 }
-func NewPrivilegesHandler(reader PrivilegesReader, resource string, action string, logWriter AuthActivityLogWriter) *PrivilegesHandler {
+func NewPrivilegesHandler(reader PrivilegesReader) *PrivilegesHandler {
+	return NewDefaultPrivilegesHandler(reader, "", "", nil)
+}
+func NewDefaultPrivilegesHandler(reader PrivilegesReader, resource string, action string, logWriter AuthActivityLogWriter) *PrivilegesHandler {
 	if len(resource) == 0 {
-		resource = "Privileges"
+		resource = "privilege"
 	}
 	if len(action) == 0 {
-		action = "All"
+		action = "all"
 	}
 	h := PrivilegesHandler{Reader: reader, Resource: resource, Action: action, LogWriter: logWriter}
 	return &h
