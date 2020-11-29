@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"reflect"
@@ -57,17 +56,16 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 	var user AuthInfo
 	if strings.Contains(r.Header.Get("Content-Type"), "multipart/form-data") {
 		if err := r.ParseMultipartForm(1073741824); err != nil {
-			fmt.Fprintf(w, "ParseForm() err: %v", err)
+			http.Error(w, "cannot parse form: " + err.Error(), http.StatusBadRequest)
 			return
 		}
 		modelType := reflect.TypeOf(user)
 		mapIndexModels, err := GetIndexesByTagJson(modelType)
 		if err != nil {
 			if h.LogError != nil {
-				msg := "cannot decode authentication info: " + err.Error()
-				h.LogError(r.Context(), msg)
+				h.LogError(r.Context(), "cannot decode authentication info: " + err.Error())
 			}
-			respondString(w, r, http.StatusBadRequest, "cannot decode authentication info")
+			http.Error(w, "cannot decode authentication info", http.StatusBadRequest)
 			return
 		}
 
@@ -95,7 +93,7 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 				msg := "cannot decode authentication info: " + er1.Error()
 				h.LogError(r.Context(), msg)
 			}
-			respondString(w, r, http.StatusBadRequest, "cannot decode authentication info")
+			http.Error(w, "cannot decode authentication info", http.StatusBadRequest)
 			return
 		}
 	}
@@ -103,10 +101,9 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 	if h.Decrypter != nil && len(h.EncryptionKey) > 0 {
 		if decodedPassword, er2 := h.Decrypter.Decrypt(user.Password, h.EncryptionKey); er2 != nil {
 			if h.LogError != nil {
-				msg := "cannot decrypt password: " + er2.Error()
-				h.LogError(r.Context(), msg)
+				h.LogError(r.Context(), "cannot decrypt password: " + er2.Error())
 			}
-			respondString(w, r, http.StatusBadRequest, "cannot decrypt password")
+			http.Error(w, "cannot decrypt password", http.StatusBadRequest)
 			return
 		} else {
 			user.Password = decodedPassword
@@ -138,7 +135,6 @@ func GetRemoteIp(r *http.Request) string {
 	}
 	return remoteIP
 }
-
 func GetIndexesByTagJson(modelType reflect.Type) (map[string]int, error) {
 	mapp := make(map[string]int, 0)
 	if modelType.Kind() != reflect.Struct {
@@ -154,7 +150,6 @@ func GetIndexesByTagJson(modelType reflect.Type) (map[string]int, error) {
 	}
 	return mapp, nil
 }
-
 func ParseIntWithType(value string, idType string) (v interface{}, err error) {
 	switch idType {
 	case "int64", "*int64":

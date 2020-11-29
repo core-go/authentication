@@ -35,7 +35,7 @@ func (c *PrivilegesByEntityHandler) PrivilegesById(w http.ResponseWriter, r *htt
 		if len(s) - c.Offset - 1 >= 0 {
 			id = s[len(s) - c.Offset - 1]
 		} else {
-			respondString(w, r, http.StatusBadRequest, "URL is not valid")
+			http.Error(w, "URL is not valid", http.StatusBadRequest)
 			return
 		}
 	}
