@@ -22,9 +22,10 @@ type AuthenticationHandler struct {
 	LogWriter             AuthActivityLogWriter
 	Decrypter             PasswordDecrypter
 	EncryptionKey         string
+	IpFromRequest         bool
 }
 
-func NewAuthenticationHandlerWithDecrypter(authenticator Authenticator, resource string, action string, logError func(context.Context, string), ip string, userId string, tokenWhitelistService TokenWhitelistChecker, logWriter AuthActivityLogWriter, decrypter PasswordDecrypter, encryptionKey string) *AuthenticationHandler {
+func NewAuthenticationHandlerWithDecrypter(authenticator Authenticator, resource string, action string, logError func(context.Context, string), ip string, userId string, tokenWhitelistService TokenWhitelistChecker, logWriter AuthActivityLogWriter, decrypter PasswordDecrypter, encryptionKey string, ipFromRequest bool) *AuthenticationHandler {
 	if len(ip) == 0 {
 		ip = "ip"
 	}
@@ -37,33 +38,25 @@ func NewAuthenticationHandlerWithDecrypter(authenticator Authenticator, resource
 	if len(action) == 0 {
 		action = "authenticate"
 	}
-	return &AuthenticationHandler{Authenticator: authenticator, Resource: resource, Action: action, LogError: logError, Ip: ip, UserId: userId, TokenWhitelistChecker: tokenWhitelistService, LogWriter: logWriter, Decrypter: decrypter, EncryptionKey: encryptionKey}
+	return &AuthenticationHandler{Authenticator: authenticator, Resource: resource, Action: action, LogError: logError, Ip: ip, UserId: userId, TokenWhitelistChecker: tokenWhitelistService, LogWriter: logWriter, Decrypter: decrypter, EncryptionKey: encryptionKey, IpFromRequest: ipFromRequest}
 }
 
-func NewAuthenticationHandler(authenticator Authenticator, logError func(context.Context, string), logService AuthActivityLogWriter, tokenWhitelistService TokenWhitelistChecker) *AuthenticationHandler {
-	return NewAuthenticationHandlerWithDecrypter(authenticator, "authentication", "authenticate", logError, "ip", "userId", tokenWhitelistService, logService, nil, "")
+func NewAuthenticationHandler(authenticator Authenticator, logError func(context.Context, string), logService AuthActivityLogWriter, tokenWhitelistService TokenWhitelistChecker, ipFromRequest bool) *AuthenticationHandler {
+	return NewAuthenticationHandlerWithDecrypter(authenticator, "authentication", "authenticate", logError, "ip", "userId", tokenWhitelistService, logService, nil, "", ipFromRequest)
 }
 
 func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Request) {
-	ip := GetRemoteIp(r)
-	var ctx context.Context
-	ctx = r.Context()
-	if len(h.Ip) > 0 {
-		ctx = context.WithValue(ctx, h.Ip, ip)
-		r = r.WithContext(ctx)
-	}
-
 	var user AuthInfo
 	if strings.Contains(r.Header.Get("Content-Type"), "multipart/form-data") {
 		if err := r.ParseMultipartForm(1073741824); err != nil {
-			http.Error(w, "cannot parse form: " + err.Error(), http.StatusBadRequest)
+			http.Error(w, "cannot parse form: "+err.Error(), http.StatusBadRequest)
 			return
 		}
 		modelType := reflect.TypeOf(user)
 		mapIndexModels, err := GetIndexesByTagJson(modelType)
 		if err != nil {
 			if h.LogError != nil {
-				h.LogError(r.Context(), "cannot decode authentication info: " + err.Error())
+				h.LogError(r.Context(), "cannot decode authentication info: "+err.Error())
 			}
 			http.Error(w, "cannot decode authentication info", http.StatusBadRequest)
 			return
@@ -98,10 +91,23 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
+	var ctx context.Context
+	ctx = r.Context()
+	if len(h.Ip) > 0 {
+		var ip string
+		if len(user.Ip) > 0 && h.IpFromRequest {
+			ip = user.Ip
+		} else {
+			ip = GetRemoteIp(r)
+		}
+		ctx = context.WithValue(ctx, h.Ip, ip)
+		r = r.WithContext(ctx)
+	}
+
 	if h.Decrypter != nil && len(h.EncryptionKey) > 0 {
 		if decodedPassword, er2 := h.Decrypter.Decrypt(user.Password, h.EncryptionKey); er2 != nil {
 			if h.LogError != nil {
-				h.LogError(r.Context(), "cannot decrypt password: " + er2.Error())
+				h.LogError(r.Context(), "cannot decrypt password: "+er2.Error())
 			}
 			http.Error(w, "cannot decrypt password", http.StatusBadRequest)
 			return
