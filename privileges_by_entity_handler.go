@@ -1,28 +1,29 @@
 package auth
 
 import (
+	"context"
 	"net/http"
 	"strings"
 )
 
 type PrivilegesByEntityHandler struct {
-	Loader    PrivilegesLoader
-	Resource  string
-	Action    string
-	Offset    int
-	LogWriter AuthActivityLogWriter
+	Privileges func(ctx context.Context, id string) ([]Privilege, error)
+	Resource   string
+	Action     string
+	Offset     int
+	WriteLog   func(ctx context.Context, resource string, action string, success bool, desc string) error
 }
-func NewPrivilegesByEntityHandler(loader PrivilegesLoader) *PrivilegesByEntityHandler {
+func NewPrivilegesByEntityHandler(loader func(ctx context.Context, id string) ([]Privilege, error)) *PrivilegesByEntityHandler {
 	return NewDefaultPrivilegesByEntityHandler(loader, "", "", 0, nil)
 }
-func NewDefaultPrivilegesByEntityHandler(loader PrivilegesLoader, resource string, action string, offset int, logWriter AuthActivityLogWriter) *PrivilegesByEntityHandler {
+func NewDefaultPrivilegesByEntityHandler(loader func(ctx context.Context, id string) ([]Privilege, error), resource string, action string, offset int, writeLog func(context.Context, string, string, bool, string) error) *PrivilegesByEntityHandler {
 	if len(resource) == 0 {
 		resource = "privilege"
 	}
 	if len(action) == 0 {
 		action = "all"
 	}
-	h := PrivilegesByEntityHandler{Loader: loader, Resource: resource, Action: action, Offset: offset, LogWriter: logWriter}
+	h := PrivilegesByEntityHandler{Privileges: loader, Resource: resource, Action: action, Offset: offset, WriteLog: writeLog}
 	return &h
 }
 func (c *PrivilegesByEntityHandler) PrivilegesById(w http.ResponseWriter, r *http.Request) {
@@ -41,10 +42,10 @@ func (c *PrivilegesByEntityHandler) PrivilegesById(w http.ResponseWriter, r *htt
 			return
 		}
 	}
-	privileges, err := c.Loader.Load(r.Context(), id)
+	privileges, err := c.Privileges(r.Context(), id)
 	if err != nil {
-		respond(w, r, http.StatusInternalServerError, InternalServerError, c.LogWriter, c.Resource, c.Action, false, err.Error())
+		respond(w, r, http.StatusInternalServerError, internalServerError, c.WriteLog, c.Resource, c.Action, false, err.Error())
 	} else {
-		respond(w, r, http.StatusOK, privileges, c.LogWriter, c.Resource, c.Action, true, "")
+		respond(w, r, http.StatusOK, privileges, c.WriteLog, c.Resource, c.Action, true, "")
 	}
 }

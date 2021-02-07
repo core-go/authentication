@@ -12,20 +12,20 @@ import (
 )
 
 type AuthenticationHandler struct {
-	Authenticator         Authenticator
-	Resource              string
-	Action                string
-	LogError              func(context.Context, string)
-	Ip                    string
-	UserId                string
-	TokenWhitelistChecker TokenWhitelistChecker
-	LogWriter             AuthActivityLogWriter
-	Decrypter             PasswordDecrypter
-	EncryptionKey         string
-	IpFromRequest         bool
+	Authenticator Authenticator
+	Resource      string
+	Action        string
+	LogError      func(context.Context, string)
+	Ip            string
+	UserId        string
+	Whitelist     func(id string, token string) error
+	WriteLog      func(ctx context.Context, resource string, action string, success bool, desc string) error
+	Decrypter     PasswordDecrypter
+	EncryptionKey string
+	IpFromRequest bool
 }
 
-func NewAuthenticationHandlerWithDecrypter(authenticator Authenticator, resource string, action string, logError func(context.Context, string), ip string, userId string, tokenWhitelistService TokenWhitelistChecker, logWriter AuthActivityLogWriter, decrypter PasswordDecrypter, encryptionKey string, ipFromRequest bool) *AuthenticationHandler {
+func NewAuthenticationHandlerWithDecrypter(authenticator Authenticator, resource string, action string, logError func(context.Context, string), ip string, userId string, addTokenIntoWhitelist func(id string, token string) error, writeLog func(context.Context, string, string, bool, string) error, decrypter PasswordDecrypter, encryptionKey string, ipFromRequest bool) *AuthenticationHandler {
 	if len(ip) == 0 {
 		ip = "ip"
 	}
@@ -38,11 +38,11 @@ func NewAuthenticationHandlerWithDecrypter(authenticator Authenticator, resource
 	if len(action) == 0 {
 		action = "authenticate"
 	}
-	return &AuthenticationHandler{Authenticator: authenticator, Resource: resource, Action: action, LogError: logError, Ip: ip, UserId: userId, TokenWhitelistChecker: tokenWhitelistService, LogWriter: logWriter, Decrypter: decrypter, EncryptionKey: encryptionKey, IpFromRequest: ipFromRequest}
+	return &AuthenticationHandler{Authenticator: authenticator, Resource: resource, Action: action, LogError: logError, Ip: ip, UserId: userId, Whitelist: addTokenIntoWhitelist, WriteLog: writeLog, Decrypter: decrypter, EncryptionKey: encryptionKey, IpFromRequest: ipFromRequest}
 }
 
-func NewAuthenticationHandler(authenticator Authenticator, logError func(context.Context, string), logService AuthActivityLogWriter, tokenWhitelistService TokenWhitelistChecker, ipFromRequest bool) *AuthenticationHandler {
-	return NewAuthenticationHandlerWithDecrypter(authenticator, "authentication", "authenticate", logError, "ip", "userId", tokenWhitelistService, logService, nil, "", ipFromRequest)
+func NewAuthenticationHandler(authenticator Authenticator, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, addTokenIntoWhitelist func(id string, token string) error, ipFromRequest bool) *AuthenticationHandler {
+	return NewAuthenticationHandlerWithDecrypter(authenticator, "authentication", "authenticate", logError, "ip", "userId", addTokenIntoWhitelist, writeLog, nil, "", ipFromRequest)
 }
 
 func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Request) {
@@ -122,16 +122,16 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 		if h.LogError != nil {
 			h.LogError(r.Context(), er3.Error())
 		}
-		respond(w, r, http.StatusOK, result, h.LogWriter, h.Resource, h.Action, false, er3.Error())
+		respond(w, r, http.StatusOK, result, h.WriteLog, h.Resource, h.Action, false, er3.Error())
 	} else {
-		if h.TokenWhitelistChecker != nil {
-			h.TokenWhitelistChecker.Add(result.User.UserId, result.User.Token)
+		if h.Whitelist != nil {
+			h.Whitelist(result.User.UserId, result.User.Token)
 		}
 		if len(h.UserId) > 0 && result.User != nil && len(result.User.UserId) > 0 {
 			ctx = context.WithValue(ctx, h.UserId, result.User.UserId)
 			r = r.WithContext(ctx)
 		}
-		respond(w, r, http.StatusOK, result, h.LogWriter, h.Resource, h.Action, true, "")
+		respond(w, r, http.StatusOK, result, h.WriteLog, h.Resource, h.Action, true, "")
 	}
 }
 func GetRemoteIp(r *http.Request) string {

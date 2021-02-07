@@ -5,16 +5,14 @@ import (
 	"encoding/json"
 	"net/http"
 )
-const InternalServerError = "Internal Server Error"
-type AuthActivityLogWriter interface {
-	Write(ctx context.Context, resource string, action string, success bool, desc string) error
-}
-func respond(w http.ResponseWriter, r *http.Request, code int, result interface{}, logWriter AuthActivityLogWriter, resource string, action string, success bool, desc string) {
+const internalServerError = "Internal Server Error"
+
+func respond(w http.ResponseWriter, r *http.Request, code int, result interface{}, writeLog func(context.Context, string, string, bool, string) error, resource string, action string, success bool, desc string) {
 	response, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	w.Write(response)
-	if logWriter != nil {
-		logWriter.Write(r.Context(), resource, action, success, desc)
+	if writeLog != nil {
+		writeLog(r.Context(), resource, action, success, desc)
 	}
 }

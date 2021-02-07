@@ -1,31 +1,35 @@
 package auth
 
-import "net/http"
+import (
+	"context"
+	"net/http"
+)
 
 type PrivilegesHandler struct {
-	Reader    PrivilegesReader
-	Resource  string
-	Action    string
-	LogWriter AuthActivityLogWriter
+	Privileges func(ctx context.Context) ([]Privilege, error)
+	Resource   string
+	Action     string
+	WriteLog   func(ctx context.Context, resource string, action string, success bool, desc string) error
 }
-func NewPrivilegesHandler(reader PrivilegesReader) *PrivilegesHandler {
+
+func NewPrivilegesHandler(reader func(context.Context) ([]Privilege, error)) *PrivilegesHandler {
 	return NewDefaultPrivilegesHandler(reader, "", "", nil)
 }
-func NewDefaultPrivilegesHandler(reader PrivilegesReader, resource string, action string, logWriter AuthActivityLogWriter) *PrivilegesHandler {
+func NewDefaultPrivilegesHandler(reader func(context.Context) ([]Privilege, error), resource string, action string, writeLog func(context.Context, string, string, bool, string) error) *PrivilegesHandler {
 	if len(resource) == 0 {
 		resource = "privilege"
 	}
 	if len(action) == 0 {
 		action = "all"
 	}
-	h := PrivilegesHandler{Reader: reader, Resource: resource, Action: action, LogWriter: logWriter}
+	h := PrivilegesHandler{Privileges: reader, Resource: resource, Action: action, WriteLog: writeLog}
 	return &h
 }
-func (c *PrivilegesHandler) Privileges(w http.ResponseWriter, r *http.Request) {
-	privileges, err := c.Reader.Privileges(r.Context())
+func (c *PrivilegesHandler) Handle(w http.ResponseWriter, r *http.Request) {
+	privileges, err := c.Privileges(r.Context())
 	if err != nil {
-		respond(w, r, http.StatusInternalServerError, InternalServerError, c.LogWriter, c.Resource, c.Action, false, err.Error())
+		respond(w, r, http.StatusInternalServerError, internalServerError, c.WriteLog, c.Resource, c.Action, false, err.Error())
 	} else {
-		respond(w, r, http.StatusOK, privileges, c.LogWriter, c.Resource, c.Action, true, "")
+		respond(w, r, http.StatusOK, privileges, c.WriteLog, c.Resource, c.Action, true, "")
 	}
 }
