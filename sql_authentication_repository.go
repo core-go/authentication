@@ -14,12 +14,12 @@ type SqlAuthenticationRepository struct {
 	db                      *sq.DB
 	userTableName           string
 	passwordTableName       string
-	TwoFactorRepository     TwoFactorAuthenticationRepository
+	CheckTwoFactors         func(ctx context.Context, id string) (bool, error)
 	activatedStatus         interface{}
 	Status                  StatusConfig
 	IdName                  string
 	UserName                string
-	UserId 					string
+	UserId                  string
 	SuccessTimeName         string
 	FailTimeName            string
 	FailCountName           string
@@ -38,26 +38,26 @@ type SqlAuthenticationRepository struct {
 	TwoFactorsName          string
 }
 
-func NewSqlAuthenticationRepositoryByConfig(db *sq.DB, userTableName, passwordTableName string, twoFactorRepository TwoFactorAuthenticationRepository, activatedStatus string, status StatusConfig, c SchemaConfig) *SqlAuthenticationRepository {
-	return NewSqlAuthenticationRepository(db, userTableName, passwordTableName, twoFactorRepository, activatedStatus, status, c.Id, c.UserName, c.UserId, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.PasswordChangedTime, c.Password, c.Contact, c.DisplayName, c.MaxPasswordAge, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors)
+func NewSqlAuthenticationRepositoryByConfig(db *sq.DB, userTableName, passwordTableName string, checkTwoFactors func(ctx context.Context, id string) (bool, error), activatedStatus string, status StatusConfig, c SchemaConfig) *SqlAuthenticationRepository {
+	return NewSqlAuthenticationRepository(db, userTableName, passwordTableName, checkTwoFactors, activatedStatus, status, c.Id, c.UserName, c.UserId, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.PasswordChangedTime, c.Password, c.Contact, c.DisplayName, c.MaxPasswordAge, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors)
 }
 
-func NewSqlAuthenticationRepository(db *sq.DB, userTableName, passwordTableName string, twoFactorRepository TwoFactorAuthenticationRepository, activatedStatus string, status StatusConfig, idName, userName, userID, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, emailName, displayNameName, maxPasswordAgeName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string) *SqlAuthenticationRepository {
+func NewSqlAuthenticationRepository(db *sq.DB, userTableName, passwordTableName string, checkTwoFactors func(ctx context.Context, id string) (bool, error), activatedStatus string, status StatusConfig, idName, userName, userID, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, emailName, displayNameName, maxPasswordAgeName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string) *SqlAuthenticationRepository {
 	return &SqlAuthenticationRepository{
-		db:                      db,
-		userTableName:           strings.ToLower(userTableName),
-		passwordTableName:       strings.ToLower(passwordTableName),
-		TwoFactorRepository:     twoFactorRepository,
-		activatedStatus:         strings.ToLower(activatedStatus),
-		Status:                  status,
-		IdName:                  strings.ToLower(idName),
-		UserName:                strings.ToLower(userName),
-		UserId:                  strings.ToLower(userID),
-		SuccessTimeName:         strings.ToLower(successTimeName),
-		FailTimeName:            strings.ToLower(failTimeName),
-		FailCountName:           strings.ToLower(failCountName),
-		LockedUntilTimeName:     strings.ToLower(lockedUntilTimeName),
-		StatusName:              strings.ToLower(statusName),
+		db:                  db,
+		userTableName:       strings.ToLower(userTableName),
+		passwordTableName:   strings.ToLower(passwordTableName),
+		CheckTwoFactors:     checkTwoFactors,
+		activatedStatus:     strings.ToLower(activatedStatus),
+		Status:              status,
+		IdName:              strings.ToLower(idName),
+		UserName:            strings.ToLower(userName),
+		UserId:              strings.ToLower(userID),
+		SuccessTimeName:     strings.ToLower(successTimeName),
+		FailTimeName:        strings.ToLower(failTimeName),
+		FailCountName:       strings.ToLower(failCountName),
+		LockedUntilTimeName: strings.ToLower(lockedUntilTimeName),
+		StatusName:          strings.ToLower(statusName),
 		PasswordChangedTimeName: strings.ToLower(passwordChangedTimeName),
 		PasswordName:            strings.ToLower(passwordName),
 		ContactName:             strings.ToLower(emailName),
@@ -554,12 +554,12 @@ func SqlScanStruct(rows *sq.Rows, outputStruct interface{}) error {
 		}
 	}
 
-	if r.TwoFactorRepository != nil {
+	if r.CheckTwoFactors != nil {
 		id := userInfo.UserId
 		if len(id) == 0 {
 			id = username
 		}
-		ok, er2 := r.TwoFactorRepository.Require(ctx, id)
+		ok, er2 := r.CheckTwoFactors.Require(ctx, id)
 		if er2 != nil {
 			return &userInfo, er2
 		}

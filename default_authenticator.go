@@ -10,58 +10,58 @@ import (
 
 type DefaultAuthenticator struct {
 	UserInfoService    UserInfoService
-	BasicAuthenticator Authenticator
+	Check              func(ctx context.Context, user AuthInfo) (AuthResult, error)
 	PasswordComparator ValueComparator
-	PrivilegesLoader   PrivilegesLoader
-	TokenGenerator     TokenGenerator
+	Privileges         func(ctx context.Context, id string) ([]Privilege, error)
+	GenerateToken      func(payload interface{}, secret string, expiresIn int64) (string, error)
 	TokenConfig        TokenConfig
 	CodeExpires        int
 	CodeService        CodeService
-	CodeSender         CodeSender
-	Generator          CodeGenerator
+	SendCode           func(ctx context.Context, to string, code string, expireAt time.Time, params interface{}) error
+	GenerateCode       func() string
 	PayloadConfig      PayloadConfig
 }
 
-func NewBasicAuthenticator(basicAuthenticator Authenticator, userInfoService UserInfoService, privilegesLoader PrivilegesLoader, tokenGenerator TokenGenerator, tokenConfig TokenConfig, payloadConfig PayloadConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, codeSender CodeSender, generator CodeGenerator) *DefaultAuthenticator {
+func NewBasicAuthenticator(basicAuthenticator func(context.Context, AuthInfo) (AuthResult, error), userInfoService UserInfoService, loadPrivileges func(ctx context.Context, id string) ([]Privilege, error), generateToken func(payload interface{}, secret string, expiresIn int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, sendCode func(ctx context.Context, to string, code string, expireAt time.Time, params interface{}) error, generate func() string) *DefaultAuthenticator {
 	if basicAuthenticator == nil {
 		panic(errors.New("basic authenticator cannot be nil"))
 	}
-	if isUsingTwoFactor && (codeService == nil || codeSender == nil || codeExpires <= 0) {
-		panic(errors.New("when using two-factor, codeService and codeSender must not be nil, and codeExpires must be greater than 0"))
+	if isUsingTwoFactor && (codeService == nil || sendCode == nil || codeExpires <= 0) {
+		panic(errors.New("when using two-factor, codeService and sendCode must not be nil, and codeExpires must be greater than 0"))
 	}
 	service := &DefaultAuthenticator{
-		BasicAuthenticator: basicAuthenticator,
-		UserInfoService:    userInfoService,
-		PrivilegesLoader:   privilegesLoader,
-		TokenGenerator:     tokenGenerator,
-		TokenConfig:        tokenConfig,
-		CodeExpires:        codeExpires,
-		CodeService:        codeService,
-		CodeSender:         codeSender,
-		Generator:          generator,
-		PayloadConfig:      payloadConfig,
+		Check:           basicAuthenticator,
+		UserInfoService: userInfoService,
+		Privileges:      loadPrivileges,
+		GenerateToken:   generateToken,
+		TokenConfig:     tokenConfig,
+		CodeExpires:     codeExpires,
+		CodeService:     codeService,
+		SendCode:        sendCode,
+		GenerateCode:    generate,
+		PayloadConfig:   payloadConfig,
 	}
 	return service
 }
 
-func NewDefaultAuthenticator(userInfoService UserInfoService, passwordComparator ValueComparator, privilegesLoader PrivilegesLoader, tokenGenerator TokenGenerator, tokenConfig TokenConfig, payloadConfig PayloadConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, codeSender CodeSender, generator CodeGenerator) *DefaultAuthenticator {
+func NewDefaultAuthenticator(userInfoService UserInfoService, passwordComparator ValueComparator, loadPrivileges func(ctx context.Context, id string) ([]Privilege, error), generateToken func(payload interface{}, secret string, expiresIn int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, sendCode func(ctx context.Context, to string, code string, expireAt time.Time, params interface{}) error, generate func() string) *DefaultAuthenticator {
 	if passwordComparator == nil {
 		panic(errors.New("password comparator cannot be nil"))
 	}
-	if isUsingTwoFactor && (codeService == nil || codeSender == nil || codeExpires <= 0) {
-		panic(errors.New("when using two-factor, codeService and codeSender must not be nil, and codeExpires must be greater than 0"))
+	if isUsingTwoFactor && (codeService == nil || sendCode == nil || codeExpires <= 0) {
+		panic(errors.New("when using two-factor, codeService and sendCode must not be nil, and codeExpires must be greater than 0"))
 	}
 	service := &DefaultAuthenticator{
-		BasicAuthenticator: nil,
+		Check:              nil,
 		UserInfoService:    userInfoService,
 		PasswordComparator: passwordComparator,
-		PrivilegesLoader:   privilegesLoader,
-		TokenGenerator:     tokenGenerator,
+		Privileges:         loadPrivileges,
+		GenerateToken:      generateToken,
 		TokenConfig:        tokenConfig,
 		CodeExpires:        codeExpires,
 		CodeService:        codeService,
-		CodeSender:         codeSender,
-		Generator:          generator,
+		SendCode:           sendCode,
+		GenerateCode:       generate,
 		PayloadConfig:      payloadConfig,
 	}
 	return service
@@ -77,9 +77,9 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 		return result, nil
 	}
 
-	if s.BasicAuthenticator != nil && info.Step <= 0 {
+	if s.Check != nil && info.Step <= 0 {
 		var er0 error
-		result, er0 = s.BasicAuthenticator.Authenticate(ctx, info)
+		result, er0 = s.Check(ctx, info)
 		if er0 != nil || result.Status != StatusSuccess && result.Status != StatusSuccessAndReactivated {
 			return result, er0
 		}
@@ -98,7 +98,7 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 				u := result.User
 				payload = UserAccountToPayload(ctx, u, s.PayloadConfig)
 			}
-			token, er4 := s.TokenGenerator.GenerateToken(payload, s.TokenConfig.Secret, s.TokenConfig.Expires)
+			token, er4 := s.GenerateToken(payload, s.TokenConfig.Secret, s.TokenConfig.Expires)
 			if er4 != nil {
 				return result, er4
 			}
@@ -119,7 +119,7 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 		return result, er1
 	}
 
-	if s.BasicAuthenticator == nil && info.Step <= 0 {
+	if s.Check == nil && info.Step <= 0 {
 		validPassword, er2 := s.PasswordComparator.Compare(password, user.Password)
 		if er2 != nil {
 			return result, er2
@@ -174,8 +174,8 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 		userId := user.UserId
 		if info.Step <= 0 {
 			var codeSend string
-			if s.Generator != nil {
-				codeSend = s.Generator.Generate()
+			if s.GenerateCode != nil {
+				codeSend = s.GenerateCode()
 			} else {
 				codeSend = generate(6)
 			}
@@ -187,7 +187,7 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 			expiredAt := addSeconds(time.Now(), s.CodeExpires)
 			count, er1 := s.CodeService.Save(ctx, userId, codeSave, expiredAt)
 			if count > 0 && er1 == nil {
-				er3 := s.CodeSender.Send(ctx, username, codeSend, expiredAt, user.Contact)
+				er3 := s.SendCode(ctx, username, codeSend, expiredAt, user.Contact)
 				if er3 != nil {
 					return result, er3
 				}
@@ -216,7 +216,7 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 	//tokenExpiredTime, jwtTokenExpires := s.setTokenExpiredTime(*user)
 	payload := ToPayload(ctx, user, s.PayloadConfig)
 	//payload := StoredUser{UserId: user.UserId, Username: user.Username, Contact: user.Contact, UserType: user.UserType, Roles: user.Roles, Privileges: user.Privileges}
-	token, er4 := s.TokenGenerator.GenerateToken(payload, s.TokenConfig.Secret, jwtTokenExpires)
+	token, er4 := s.GenerateToken(payload, s.TokenConfig.Secret, jwtTokenExpires)
 	if er4 != nil {
 		return result, er4
 	}
@@ -229,8 +229,8 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 	account := mapUserInfoToUserAccount(*user)
 	account.Token = token
 	account.TokenExpiredTime = &tokenExpiredTime
-	if s.PrivilegesLoader != nil {
-		privileges, er5 := s.PrivilegesLoader.Load(ctx, user.UserId)
+	if s.Privileges != nil {
+		privileges, er5 := s.Privileges(ctx, user.UserId)
 		if er5 != nil {
 			return result, er5
 		}
