@@ -22,15 +22,15 @@ type DefaultAuthenticator struct {
 	PayloadConfig      PayloadConfig
 }
 
-func NewBasicAuthenticator(basicAuthenticator func(context.Context, AuthInfo) (AuthResult, error), userInfoService UserInfoService, loadPrivileges func(ctx context.Context, id string) ([]Privilege, error), generateToken func(payload interface{}, secret string, expiresIn int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, sendCode func(ctx context.Context, to string, code string, expireAt time.Time, params interface{}) error, generate func() string) *DefaultAuthenticator {
-	if basicAuthenticator == nil {
-		panic(errors.New("basic authenticator cannot be nil"))
+func NewBasicAuthenticator(check func(context.Context, AuthInfo) (AuthResult, error), userInfoService UserInfoService, loadPrivileges func(ctx context.Context, id string) ([]Privilege, error), generateToken func(payload interface{}, secret string, expiresIn int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, sendCode func(ctx context.Context, to string, code string, expireAt time.Time, params interface{}) error, generate func() string) *DefaultAuthenticator {
+	if check == nil {
+		panic(errors.New("basic check cannot be nil"))
 	}
 	if isUsingTwoFactor && (codeService == nil || sendCode == nil || codeExpires <= 0) {
 		panic(errors.New("when using two-factor, codeService and sendCode must not be nil, and codeExpires must be greater than 0"))
 	}
 	service := &DefaultAuthenticator{
-		Check:           basicAuthenticator,
+		Check:           check,
 		UserInfoService: userInfoService,
 		Privileges:      loadPrivileges,
 		GenerateToken:   generateToken,
