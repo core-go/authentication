@@ -38,11 +38,15 @@ type SqlAuthenticationRepository struct {
 	TwoFactorsName          string
 }
 
-func NewSqlAuthenticationRepositoryByConfig(db *sq.DB, userTableName, passwordTableName string, checkTwoFactors func(ctx context.Context, id string) (bool, error), activatedStatus string, status UserStatusConfig, c SchemaConfig) *SqlAuthenticationRepository {
-	return NewSqlAuthenticationRepository(db, userTableName, passwordTableName, checkTwoFactors, activatedStatus, status, c.Id, c.UserName, c.UserId, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.PasswordChangedTime, c.Password, c.Contact, c.DisplayName, c.MaxPasswordAge, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors)
+func NewSqlAuthenticationRepositoryByConfig(db *sq.DB, userTableName, passwordTableName string, activatedStatus string, status UserStatusConfig, c SchemaConfig, options...func(context.Context, string) (bool, error)) *SqlAuthenticationRepository {
+	return NewSqlAuthenticationRepository(db, userTableName, passwordTableName, activatedStatus, status, c.Id, c.UserName, c.UserId, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.PasswordChangedTime, c.Password, c.Contact, c.DisplayName, c.MaxPasswordAge, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors, options...)
 }
 
-func NewSqlAuthenticationRepository(db *sq.DB, userTableName, passwordTableName string, checkTwoFactors func(ctx context.Context, id string) (bool, error), activatedStatus string, status UserStatusConfig, idName, userName, userID, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, emailName, displayNameName, maxPasswordAgeName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string) *SqlAuthenticationRepository {
+func NewSqlAuthenticationRepository(db *sq.DB, userTableName, passwordTableName string, activatedStatus string, status UserStatusConfig, idName, userName, userID, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, emailName, displayNameName, maxPasswordAgeName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string, options...func(context.Context, string) (bool, error)) *SqlAuthenticationRepository {
+	var checkTwoFactors func(context.Context, string) (bool, error)
+	if len(options) >= 1 {
+		checkTwoFactors = options[0]
+	}
 	return &SqlAuthenticationRepository{
 		db:                  db,
 		userTableName:       strings.ToLower(userTableName),
