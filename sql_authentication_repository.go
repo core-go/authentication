@@ -16,7 +16,7 @@ type SqlAuthenticationRepository struct {
 	passwordTableName       string
 	CheckTwoFactors         func(ctx context.Context, id string) (bool, error)
 	activatedStatus         interface{}
-	Status                  StatusConfig
+	Status                  UserStatusConfig
 	IdName                  string
 	UserName                string
 	UserId                  string
@@ -38,11 +38,11 @@ type SqlAuthenticationRepository struct {
 	TwoFactorsName          string
 }
 
-func NewSqlAuthenticationRepositoryByConfig(db *sq.DB, userTableName, passwordTableName string, checkTwoFactors func(ctx context.Context, id string) (bool, error), activatedStatus string, status StatusConfig, c SchemaConfig) *SqlAuthenticationRepository {
+func NewSqlAuthenticationRepositoryByConfig(db *sq.DB, userTableName, passwordTableName string, checkTwoFactors func(ctx context.Context, id string) (bool, error), activatedStatus string, status UserStatusConfig, c SchemaConfig) *SqlAuthenticationRepository {
 	return NewSqlAuthenticationRepository(db, userTableName, passwordTableName, checkTwoFactors, activatedStatus, status, c.Id, c.UserName, c.UserId, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.PasswordChangedTime, c.Password, c.Contact, c.DisplayName, c.MaxPasswordAge, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors)
 }
 
-func NewSqlAuthenticationRepository(db *sq.DB, userTableName, passwordTableName string, checkTwoFactors func(ctx context.Context, id string) (bool, error), activatedStatus string, status StatusConfig, idName, userName, userID, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, emailName, displayNameName, maxPasswordAgeName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string) *SqlAuthenticationRepository {
+func NewSqlAuthenticationRepository(db *sq.DB, userTableName, passwordTableName string, checkTwoFactors func(ctx context.Context, id string) (bool, error), activatedStatus string, status UserStatusConfig, idName, userName, userID, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, emailName, displayNameName, maxPasswordAgeName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string) *SqlAuthenticationRepository {
 	return &SqlAuthenticationRepository{
 		db:                  db,
 		userTableName:       strings.ToLower(userTableName),

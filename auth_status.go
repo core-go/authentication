@@ -1,6 +1,6 @@
 package auth
 
-type AuthStatusConfig struct {
+type StatusConfig struct {
 	Fail                  *int `mapstructure:"fail"`
 	Success               *int `mapstructure:"success"`
 	SuccessAndReactivated *int `mapstructure:"success_and_reactivated"`
@@ -13,7 +13,7 @@ type AuthStatusConfig struct {
 	Disabled              *int `mapstructure:"disabled"`
 	Error                 *int `mapstructure:"Error"`
 }
-type AuthStatus struct {
+type Status struct {
 	Fail                  int `mapstructure:"fail"`
 	Success               int `mapstructure:"success"`
 	SuccessAndReactivated int `mapstructure:"success_and_reactivated"`
@@ -27,8 +27,8 @@ type AuthStatus struct {
 	Error                 int `mapstructure:"error"`
 }
 
-func InitStatus(c AuthStatusConfig) AuthStatus {
-	var s AuthStatus
+func InitStatus(c StatusConfig) Status {
+	var s Status
 	if c.Error != nil {
 		s.Error = *c.Error
 	} else {
@@ -92,16 +92,16 @@ func InitStatus(c AuthStatusConfig) AuthStatus {
 
 /*
 const (
-	StatusSuccess               = AuthStatus(0)
-	StatusSuccessAndReactivated = AuthStatus(1)
-	StatusTwoFactorRequired     = AuthStatus(2)
-	StatusFail                  = AuthStatus(3)
-	StatusWrongPassword         = AuthStatus(4)
-	StatusPasswordExpired       = AuthStatus(5)
-	StatusAccessTimeLocked      = AuthStatus(6)
-	StatusLocked                = AuthStatus(7)
-	StatusSuspended             = AuthStatus(8)
-	StatusDisabled              = AuthStatus(9)
-	StatusSystemError           = AuthStatus(10)
+	StatusSuccess               = Status(0)
+	StatusSuccessAndReactivated = Status(1)
+	StatusTwoFactorRequired     = Status(2)
+	StatusFail                  = Status(3)
+	StatusWrongPassword         = Status(4)
+	StatusPasswordExpired       = Status(5)
+	StatusAccessTimeLocked      = Status(6)
+	StatusLocked                = Status(7)
+	StatusSuspended             = Status(8)
+	StatusDisabled              = Status(9)
+	StatusSystemError           = Status(10)
 )
 */
