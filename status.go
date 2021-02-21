@@ -27,7 +27,11 @@ type Status struct {
 	Error                 int `mapstructure:"error"`
 }
 
-func InitStatus(c StatusConfig) Status {
+func InitStatus(c0 *StatusConfig) Status {
+	var c StatusConfig
+	if c0 != nil {
+		c = *c0
+	}
 	var s Status
 	if c.Error != nil {
 		s.Error = *c.Error
