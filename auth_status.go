@@ -89,19 +89,3 @@ func InitStatus(c StatusConfig) Status {
 	}
 	return s
 }
-
-/*
-const (
-	StatusSuccess               = Status(0)
-	StatusSuccessAndReactivated = Status(1)
-	StatusTwoFactorRequired     = Status(2)
-	StatusFail                  = Status(3)
-	StatusWrongPassword         = Status(4)
-	StatusPasswordExpired       = Status(5)
-	StatusAccessTimeLocked      = Status(6)
-	StatusLocked                = Status(7)
-	StatusSuspended             = Status(8)
-	StatusDisabled              = Status(9)
-	StatusSystemError           = Status(10)
-)
-*/
