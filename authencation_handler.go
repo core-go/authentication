@@ -12,7 +12,7 @@ import (
 )
 
 type AuthenticationHandler struct {
-	Authenticator Authenticator
+	Auth          func(ctx context.Context, user AuthInfo) (AuthResult, error)
 	Resource      string
 	Action        string
 	LogError      func(context.Context, string)
@@ -22,10 +22,11 @@ type AuthenticationHandler struct {
 	WriteLog      func(ctx context.Context, resource string, action string, success bool, desc string) error
 	Decrypt       func(cipherText string, secretKey string) (string, error)
 	EncryptionKey string
+	SystemError   int
 	IpFromRequest bool
 }
 
-func NewAuthenticationHandlerWithDecrypter(authenticator Authenticator, resource string, action string, logError func(context.Context, string), ip string, userId string, addTokenIntoWhitelist func(id string, token string) error, writeLog func(context.Context, string, string, bool, string) error, decrypt func(cipherText string, secretKey string) (string, error), encryptionKey string, ipFromRequest bool) *AuthenticationHandler {
+func NewAuthenticationHandlerWithDecrypter(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, resource string, action string, logError func(context.Context, string), ip string, userId string, addTokenIntoWhitelist func(id string, token string) error, writeLog func(context.Context, string, string, bool, string) error, decrypt func(cipherText string, secretKey string) (string, error), encryptionKey string, options ...bool) *AuthenticationHandler {
 	if len(ip) == 0 {
 		ip = "ip"
 	}
@@ -36,13 +37,17 @@ func NewAuthenticationHandlerWithDecrypter(authenticator Authenticator, resource
 		resource = "authentication"
 	}
 	if len(action) == 0 {
-		action = "authenticate"
+		action = "Auth"
 	}
-	return &AuthenticationHandler{Authenticator: authenticator, Resource: resource, Action: action, LogError: logError, Ip: ip, UserId: userId, Whitelist: addTokenIntoWhitelist, WriteLog: writeLog, Decrypt: decrypt, EncryptionKey: encryptionKey, IpFromRequest: ipFromRequest}
+	var ipFromRequest bool
+	if len(options) >= 1 {
+		ipFromRequest = options[0]
+	}
+	return &AuthenticationHandler{Auth: authenticate, SystemError: systemError, Resource: resource, Action: action, LogError: logError, Ip: ip, UserId: userId, Whitelist: addTokenIntoWhitelist, WriteLog: writeLog, Decrypt: decrypt, EncryptionKey: encryptionKey, IpFromRequest: ipFromRequest}
 }
 
-func NewAuthenticationHandler(authenticator Authenticator, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, addTokenIntoWhitelist func(id string, token string) error, ipFromRequest bool) *AuthenticationHandler {
-	return NewAuthenticationHandlerWithDecrypter(authenticator, "authentication", "authenticate", logError, "ip", "userId", addTokenIntoWhitelist, writeLog, nil, "", ipFromRequest)
+func NewAuthenticationHandler(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, addTokenIntoWhitelist func(id string, token string) error, options ...bool) *AuthenticationHandler {
+	return NewAuthenticationHandlerWithDecrypter(authenticate, systemError, "authentication", "Auth", logError, "ip", "userId", addTokenIntoWhitelist, writeLog, nil, "", options...)
 }
 
 func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Request) {
@@ -116,9 +121,9 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	result, er3 := h.Authenticator.Authenticate(r.Context(), user)
+	result, er3 := h.Auth(r.Context(), user)
 	if er3 != nil {
-		result.Status = StatusSystemError
+		result.Status = h.SystemError
 		if h.LogError != nil {
 			h.LogError(r.Context(), er3.Error())
 		}
