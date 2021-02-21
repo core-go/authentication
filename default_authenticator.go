@@ -20,10 +20,10 @@ type DefaultAuthenticator struct {
 	SendCode           func(ctx context.Context, to string, code string, expireAt time.Time, params interface{}) error
 	GenerateCode       func() string
 	PayloadConfig      PayloadConfig
-	AuthStatus         Status
+	Status             Status
 }
 
-func NewBasicAuthenticator(sc *StatusConfig, check func(context.Context, AuthInfo) (AuthResult, error), userInfoService UserInfoService, loadPrivileges func(ctx context.Context, id string) ([]Privilege, error), generateToken func(payload interface{}, secret string, expiresIn int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, sendCode func(ctx context.Context, to string, code string, expireAt time.Time, params interface{}) error, options...func() string) *DefaultAuthenticator {
+func NewBasicAuthenticator(status Status, check func(context.Context, AuthInfo) (AuthResult, error), userInfoService UserInfoService, loadPrivileges func(ctx context.Context, id string) ([]Privilege, error), generateToken func(payload interface{}, secret string, expiresIn int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, sendCode func(ctx context.Context, to string, code string, expireAt time.Time, params interface{}) error, options...func() string) *DefaultAuthenticator {
 	if check == nil {
 		panic(errors.New("basic check cannot be nil"))
 	}
@@ -34,7 +34,6 @@ func NewBasicAuthenticator(sc *StatusConfig, check func(context.Context, AuthInf
 	if len(options) >= 0 {
 		generate = options[0]
 	}
-	s := InitStatus(sc)
 	service := &DefaultAuthenticator{
 		Check:           check,
 		UserInfoService: userInfoService,
@@ -46,12 +45,12 @@ func NewBasicAuthenticator(sc *StatusConfig, check func(context.Context, AuthInf
 		SendCode:        sendCode,
 		GenerateCode:    generate,
 		PayloadConfig:   payloadConfig,
-		AuthStatus:      s,
+		Status:          status,
 	}
 	return service
 }
 
-func NewAuthenticator(sc *StatusConfig, userInfoService UserInfoService, passwordComparator ValueComparator, loadPrivileges func(ctx context.Context, id string) ([]Privilege, error), generateToken func(payload interface{}, secret string, expiresIn int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, sendCode func(ctx context.Context, to string, code string, expireAt time.Time, params interface{}) error, options...func() string) *DefaultAuthenticator {
+func NewAuthenticator(status Status, userInfoService UserInfoService, passwordComparator ValueComparator, loadPrivileges func(ctx context.Context, id string) ([]Privilege, error), generateToken func(payload interface{}, secret string, expiresIn int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, isUsingTwoFactor bool, codeExpires int, codeService CodeService, sendCode func(ctx context.Context, to string, code string, expireAt time.Time, params interface{}) error, options...func() string) *DefaultAuthenticator {
 	if passwordComparator == nil {
 		panic(errors.New("password comparator cannot be nil"))
 	}
@@ -62,7 +61,6 @@ func NewAuthenticator(sc *StatusConfig, userInfoService UserInfoService, passwor
 	if len(options) >= 0 {
 		generate = options[0]
 	}
-	s := InitStatus(sc)
 	service := &DefaultAuthenticator{
 		Check:              nil,
 		UserInfoService:    userInfoService,
@@ -75,13 +73,13 @@ func NewAuthenticator(sc *StatusConfig, userInfoService UserInfoService, passwor
 		SendCode:           sendCode,
 		GenerateCode:       generate,
 		PayloadConfig:      payloadConfig,
-		AuthStatus:         s,
+		Status:             status,
 	}
 	return service
 }
 
 func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) (AuthResult, error) {
-	result := AuthResult{Status: s.AuthStatus.Fail}
+	result := AuthResult{Status: s.Status.Fail}
 
 	username := info.Username
 	password := info.Password
@@ -93,7 +91,7 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 	if s.Check != nil && info.Step <= 0 {
 		var er0 error
 		result, er0 = s.Check(ctx, info)
-		if er0 != nil || result.Status != s.AuthStatus.Success && result.Status != s.AuthStatus.SuccessAndReactivated {
+		if er0 != nil || result.Status != s.Status.Success && result.Status != s.Status.SuccessAndReactivated {
 			return result, er0
 		}
 		if s.UserInfoService == nil {
@@ -117,7 +115,7 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 			}
 			account := UserAccount{}
 			account.Token = token
-			result.Status =s.AuthStatus.Success
+			result.Status =s.Status.Success
 			result.User = &account
 			account.TokenExpiredTime = &tokenExpiredTime
 			return result, nil
@@ -142,25 +140,25 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 			if er3 != nil {
 				return result, er3
 			}
-			result.Status = s.AuthStatus.WrongPassword
+			result.Status = s.Status.WrongPassword
 			return result, nil
 		}
 		account := UserAccount{}
 		result.User = &account
 	}
 	if user.Disable {
-		result.Status = s.AuthStatus.Disabled
+		result.Status = s.Status.Disabled
 		return result, nil
 	}
 
 	if user.Suspended {
-		result.Status = s.AuthStatus.Suspended
+		result.Status = s.Status.Suspended
 		return result, nil
 	}
 
 	locked := user.LockedUntilTime != nil && (compareDate(time.Now(), *user.LockedUntilTime) < 0)
 	if locked {
-		result.Status = s.AuthStatus.Locked
+		result.Status = s.Status.Locked
 		return result, nil
 	}
 
@@ -170,16 +168,16 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 		passwordExpiredTime = &t
 	}
 	if passwordExpiredTime != nil && compareDate(time.Now(), *passwordExpiredTime) > 0 {
-		result.Status = s.AuthStatus.PasswordExpired
+		result.Status = s.Status.PasswordExpired
 		return result, nil
 	}
 
 	if !IsAccessDateValid(user.AccessDateFrom, user.AccessDateTo) {
-		result.Status = s.AuthStatus.Disabled
+		result.Status = s.Status.Disabled
 		return result, nil
 	}
 	if !IsAccessTimeValid(user.AccessTimeFrom, user.AccessTimeTo) {
-		result.Status = s.AuthStatus.AccessTimeLocked
+		result.Status = s.Status.AccessTimeLocked
 		return result, nil
 	}
 
@@ -204,7 +202,7 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 				if er3 != nil {
 					return result, er3
 				}
-				result.Status = s.AuthStatus.TwoFactorRequired
+				result.Status = s.Status.TwoFactorRequired
 				return result, nil
 			}
 		}
@@ -234,9 +232,9 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 		return result, er4
 	}
 	if user.Deactivated == true {
-		result.Status = s.AuthStatus.SuccessAndReactivated
+		result.Status = s.Status.SuccessAndReactivated
 	} else {
-		result.Status = s.AuthStatus.Success
+		result.Status = s.Status.Success
 	}
 
 	account := mapUserInfoToUserAccount(*user)
