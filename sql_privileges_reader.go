@@ -22,10 +22,18 @@ type SqlPrivilegesReader struct {
 	NoSequence bool
 	Driver     string
 }
-func NewPrivilegesReader(db *sql.DB, query string) *SqlPrivilegesReader {
-	return NewSqlPrivilegesReader(db, query, true, true)
-}
-func NewSqlPrivilegesReader(db *sql.DB, query string, noSequence bool, handleDriver bool) *SqlPrivilegesReader {
+func NewPrivilegesReader(db *sql.DB, query string, options...bool) *SqlPrivilegesReader {
+	var handleDriver, noSequence bool
+	if len(options) >= 1 {
+		handleDriver = options[0]
+	} else {
+		handleDriver = true
+	}
+	if len(options) >= 2 {
+		noSequence = options[1]
+	} else {
+		noSequence = true
+	}
 	driver := GetDriver(db)
 	if handleDriver {
 		query = ReplaceQueryArgs(driver, query)
