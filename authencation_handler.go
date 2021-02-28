@@ -13,41 +13,50 @@ import (
 
 type AuthenticationHandler struct {
 	Auth          func(ctx context.Context, user AuthInfo) (AuthResult, error)
-	Resource      string
-	Action        string
-	LogError      func(context.Context, string)
+	SystemError   int
+	Error         func(context.Context, string)
 	Ip            string
 	UserId        string
 	Whitelist     func(id string, token string) error
-	WriteLog      func(ctx context.Context, resource string, action string, success bool, desc string) error
+	IpFromRequest bool
+	Log           func(ctx context.Context, resource string, action string, success bool, desc string) error
+	Resource      string
+	Action        string
 	Decrypt       func(cipherText string, secretKey string) (string, error)
 	EncryptionKey string
-	SystemError   int
-	IpFromRequest bool
 }
 
-func NewAuthenticationHandlerWithDecrypter(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, resource string, action string, logError func(context.Context, string), ip string, userId string, addTokenIntoWhitelist func(id string, token string) error, writeLog func(context.Context, string, string, bool, string) error, decrypt func(cipherText string, secretKey string) (string, error), encryptionKey string, options ...bool) *AuthenticationHandler {
-	if len(ip) == 0 {
+func NewAuthenticationHandlerWithDecrypter(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, logError func(context.Context, string), addTokenIntoWhitelist func(id string, token string) error, ipFromRequest bool, decrypt func(cipherText string, secretKey string) (string, error), encryptionKey string, writeLog func(context.Context, string, string, bool, string) error, options ...string) *AuthenticationHandler {
+	var ip, userId, resource, action string
+	if len(options) >= 1 {
+		ip = options[0]
+	} else {
 		ip = "ip"
 	}
-	if len(userId) == 0 {
+	if len(options) >= 2 {
+		userId = options[1]
+	} else {
 		userId = "userId"
 	}
-	if len(resource) == 0 {
+	if len(options) >= 3 {
+		resource = options[2]
+	} else {
 		resource = "authentication"
 	}
-	if len(action) == 0 {
-		action = "Auth"
+	if len(options) >= 4 {
+		action = options[3]
+	} else {
+		action = "authenticate"
 	}
-	var ipFromRequest bool
-	if len(options) >= 1 {
-		ipFromRequest = options[0]
-	}
-	return &AuthenticationHandler{Auth: authenticate, SystemError: systemError, Resource: resource, Action: action, LogError: logError, Ip: ip, UserId: userId, Whitelist: addTokenIntoWhitelist, WriteLog: writeLog, Decrypt: decrypt, EncryptionKey: encryptionKey, IpFromRequest: ipFromRequest}
+	return &AuthenticationHandler{Auth: authenticate, SystemError: systemError, Resource: resource, Action: action, Error: logError, Ip: ip, UserId: userId, Whitelist: addTokenIntoWhitelist, Log: writeLog, Decrypt: decrypt, EncryptionKey: encryptionKey, IpFromRequest: ipFromRequest}
 }
 
-func NewAuthenticationHandler(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, addTokenIntoWhitelist func(id string, token string) error, options ...bool) *AuthenticationHandler {
-	return NewAuthenticationHandlerWithDecrypter(authenticate, systemError, "authentication", "Auth", logError, "ip", "userId", addTokenIntoWhitelist, writeLog, nil, "", options...)
+func NewAuthenticationHandler(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, logError func(context.Context, string), addTokenIntoWhitelist func(id string, token string) error, ipFromRequest bool, options ...func(context.Context, string, string, bool, string) error) *AuthenticationHandler {
+	var writeLog func(context.Context, string, string, bool, string) error
+	if len(options) >= 1 {
+		writeLog = options[0]
+	}
+	return NewAuthenticationHandlerWithDecrypter(authenticate, systemError, logError, addTokenIntoWhitelist, ipFromRequest, nil, "", writeLog, "ip", "userId", "authentication", "authenticate")
 }
 
 func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Request) {
@@ -60,8 +69,8 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 		modelType := reflect.TypeOf(user)
 		mapIndexModels, err := GetIndexesByTagJson(modelType)
 		if err != nil {
-			if h.LogError != nil {
-				h.LogError(r.Context(), "cannot decode authentication info: "+err.Error())
+			if h.Error != nil {
+				h.Error(r.Context(), "cannot decode authentication info: "+err.Error())
 			}
 			http.Error(w, "cannot decode authentication info", http.StatusBadRequest)
 			return
@@ -87,9 +96,9 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 	} else {
 		er1 := json.NewDecoder(r.Body).Decode(&user)
 		if er1 != nil {
-			if h.LogError != nil {
+			if h.Error != nil {
 				msg := "cannot decode authentication info: " + er1.Error()
-				h.LogError(r.Context(), msg)
+				h.Error(r.Context(), msg)
 			}
 			http.Error(w, "cannot decode authentication info", http.StatusBadRequest)
 			return
@@ -111,8 +120,8 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 
 	if h.Decrypt != nil && len(h.EncryptionKey) > 0 {
 		if decodedPassword, er2 := h.Decrypt(user.Password, h.EncryptionKey); er2 != nil {
-			if h.LogError != nil {
-				h.LogError(r.Context(), "cannot decrypt password: "+er2.Error())
+			if h.Error != nil {
+				h.Error(r.Context(), "cannot decrypt password: "+er2.Error())
 			}
 			http.Error(w, "cannot decrypt password", http.StatusBadRequest)
 			return
@@ -124,19 +133,19 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 	result, er3 := h.Auth(r.Context(), user)
 	if er3 != nil {
 		result.Status = h.SystemError
-		if h.LogError != nil {
-			h.LogError(r.Context(), er3.Error())
+		if h.Error != nil {
+			h.Error(r.Context(), er3.Error())
 		}
-		respond(w, r, http.StatusOK, result, h.WriteLog, h.Resource, h.Action, false, er3.Error())
+		respond(w, r, http.StatusOK, result, h.Log, h.Resource, h.Action, false, er3.Error())
 	} else {
 		if h.Whitelist != nil {
-			h.Whitelist(result.User.UserId, result.User.Token)
+			h.Whitelist(result.User.Id, result.User.Token)
 		}
-		if len(h.UserId) > 0 && result.User != nil && len(result.User.UserId) > 0 {
-			ctx = context.WithValue(ctx, h.UserId, result.User.UserId)
+		if len(h.UserId) > 0 && result.User != nil && len(result.User.Id) > 0 {
+			ctx = context.WithValue(ctx, h.UserId, result.User.Id)
 			r = r.WithContext(ctx)
 		}
-		respond(w, r, http.StatusOK, result, h.WriteLog, h.Resource, h.Action, true, "")
+		respond(w, r, http.StatusOK, result, h.Log, h.Resource, h.Action, true, "")
 	}
 }
 func GetRemoteIp(r *http.Request) string {

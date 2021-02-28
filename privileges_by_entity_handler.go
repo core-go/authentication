@@ -7,45 +7,59 @@ import (
 )
 
 type PrivilegesByEntityHandler struct {
-	Privileges func(ctx context.Context, id string) ([]Privilege, error)
-	Resource   string
-	Action     string
-	Offset     int
-	WriteLog   func(ctx context.Context, resource string, action string, success bool, desc string) error
+	Load     func(ctx context.Context, id string) ([]Privilege, error)
+	Error    func(context.Context, string)
+	Offset   int
+	Log      func(ctx context.Context, resource string, action string, success bool, desc string) error
+	Resource string
+	Action   string
 }
-func NewPrivilegesByEntityHandler(loader func(ctx context.Context, id string) ([]Privilege, error)) *PrivilegesByEntityHandler {
-	return NewDefaultPrivilegesByEntityHandler(loader, "", "", 0, nil)
+
+func NewPrivilegesByEntityHandler(load func(ctx context.Context, id string) ([]Privilege, error), options ...func(context.Context, string)) *PrivilegesByEntityHandler {
+	var logError func(context.Context, string)
+	if len(options) >= 1 {
+		logError = options[0]
+	}
+	return NewDefaultPrivilegesByEntityHandler(load, logError, 0, nil)
 }
-func NewDefaultPrivilegesByEntityHandler(loader func(ctx context.Context, id string) ([]Privilege, error), resource string, action string, offset int, writeLog func(context.Context, string, string, bool, string) error) *PrivilegesByEntityHandler {
-	if len(resource) == 0 {
+func NewDefaultPrivilegesByEntityHandler(load func(ctx context.Context, id string) ([]Privilege, error), logError func(context.Context, string), offset int, writeLog func(context.Context, string, string, bool, string) error, options ...string) *PrivilegesByEntityHandler {
+	var resource, action string
+	if len(options) >= 1 {
+		resource = options[0]
+	} else {
 		resource = "privilege"
 	}
-	if len(action) == 0 {
+	if len(options) >= 2 {
+		action = options[1]
+	} else {
 		action = "all"
 	}
-	h := PrivilegesByEntityHandler{Privileges: loader, Resource: resource, Action: action, Offset: offset, WriteLog: writeLog}
+	h := PrivilegesByEntityHandler{Load: load, Error: logError, Resource: resource, Action: action, Offset: offset, Log: writeLog}
 	return &h
 }
-func (c *PrivilegesByEntityHandler) PrivilegesById(w http.ResponseWriter, r *http.Request) {
+func (c *PrivilegesByEntityHandler) Privileges(w http.ResponseWriter, r *http.Request) {
 	id := ""
-	if c.Offset <=0 {
+	if c.Offset <= 0 {
 		i := strings.LastIndex(r.RequestURI, "/")
 		if i >= 0 {
-			id = r.RequestURI[i + 1:]
+			id = r.RequestURI[i+1:]
 		}
 	} else {
 		s := strings.Split(r.RequestURI, "/")
-		if len(s) - c.Offset - 1 >= 0 {
-			id = s[len(s) - c.Offset - 1]
+		if len(s)-c.Offset-1 >= 0 {
+			id = s[len(s)-c.Offset-1]
 		} else {
 			http.Error(w, "URL is not valid", http.StatusBadRequest)
 			return
 		}
 	}
-	privileges, err := c.Privileges(r.Context(), id)
+	privileges, err := c.Load(r.Context(), id)
 	if err != nil {
-		respond(w, r, http.StatusInternalServerError, internalServerError, c.WriteLog, c.Resource, c.Action, false, err.Error())
+		if c.Error != nil {
+			c.Error(r.Context(), err.Error())
+		}
+		respond(w, r, http.StatusInternalServerError, internalServerError, c.Log, c.Resource, c.Action, false, err.Error())
 	} else {
-		respond(w, r, http.StatusOK, privileges, c.WriteLog, c.Resource, c.Action, true, "")
+		respond(w, r, http.StatusOK, privileges, c.Log, c.Resource, c.Action, true, "")
 	}
 }
