@@ -20,9 +20,9 @@ func NewPrivilegesByEntityHandler(load func(ctx context.Context, id string) ([]P
 	if len(options) >= 1 {
 		logError = options[0]
 	}
-	return NewDefaultPrivilegesByEntityHandler(load, logError, 0, nil)
+	return NewPrivilegesByEntityHandlerWithLog(load, logError, 0, nil)
 }
-func NewDefaultPrivilegesByEntityHandler(load func(ctx context.Context, id string) ([]Privilege, error), logError func(context.Context, string), offset int, writeLog func(context.Context, string, string, bool, string) error, options ...string) *PrivilegesByEntityHandler {
+func NewPrivilegesByEntityHandlerWithLog(load func(ctx context.Context, id string) ([]Privilege, error), logError func(context.Context, string), offset int, writeLog func(context.Context, string, string, bool, string) error, options ...string) *PrivilegesByEntityHandler {
 	var resource, action string
 	if len(options) >= 1 {
 		resource = options[0]

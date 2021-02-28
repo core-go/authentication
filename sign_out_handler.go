@@ -17,10 +17,14 @@ type SignOutHandler struct {
 	Action      string
 }
 
-func NewDefaultSignOutHandler(verifyToken func(tokenString string, secret string) (map[string]interface{}, int64, int64, error), secret string, revokeToken func(token string, reason string, expires time.Time) error, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error) *SignOutHandler {
-	return NewSignOutHandler(verifyToken, secret, revokeToken, logError, writeLog, "authentication", "signout")
+func NewSignOutHandler(verifyToken func(tokenString string, secret string) (map[string]interface{}, int64, int64, error), secret string, revokeToken func(token string, reason string, expires time.Time) error, logError func(context.Context, string), options...func(context.Context, string, string, bool, string) error) *SignOutHandler {
+	var writeLog func(context.Context, string, string, bool, string) error
+	if len(options) >= 1 {
+		writeLog = options[0]
+	}
+	return NewSignOutHandlerWithLog(verifyToken, secret, revokeToken, logError, writeLog, "authentication", "signout")
 }
-func NewSignOutHandler(verifyToken func(tokenString string, secret string) (map[string]interface{}, int64, int64, error), secret string, revokeToken func(token string, reason string, expires time.Time) error, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, options ...string) *SignOutHandler {
+func NewSignOutHandlerWithLog(verifyToken func(tokenString string, secret string) (map[string]interface{}, int64, int64, error), secret string, revokeToken func(token string, reason string, expires time.Time) error, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, options ...string) *SignOutHandler {
 	var resource, action string
 	if len(options) >= 1 {
 		resource = options[0]

@@ -50,8 +50,14 @@ func NewAuthenticationHandlerWithDecrypter(authenticate func(context.Context, Au
 	}
 	return &AuthenticationHandler{Auth: authenticate, SystemError: systemError, Resource: resource, Action: action, Error: logError, Ip: ip, UserId: userId, Whitelist: addTokenIntoWhitelist, Log: writeLog, Decrypt: decrypt, EncryptionKey: encryptionKey, IpFromRequest: ipFromRequest}
 }
-
-func NewAuthenticationHandler(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, logError func(context.Context, string), addTokenIntoWhitelist func(id string, token string) error, ipFromRequest bool, options ...func(context.Context, string, string, bool, string) error) *AuthenticationHandler {
+func NewAuthenticationHandler(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, logError func(context.Context, string), options ...func(context.Context, string, string, bool, string) error) *AuthenticationHandler {
+	var writeLog func(context.Context, string, string, bool, string) error
+	if len(options) >= 1 {
+		writeLog = options[0]
+	}
+	return NewAuthenticationHandlerWithDecrypter(authenticate, systemError, logError, nil, true, nil, "", writeLog, "ip", "userId", "authentication", "authenticate")
+}
+func NewAuthenticationHandlerWithWhitelist(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, logError func(context.Context, string), addTokenIntoWhitelist func(id string, token string) error, ipFromRequest bool, options ...func(context.Context, string, string, bool, string) error) *AuthenticationHandler {
 	var writeLog func(context.Context, string, string, bool, string) error
 	if len(options) >= 1 {
 		writeLog = options[0]

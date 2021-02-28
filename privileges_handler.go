@@ -18,9 +18,9 @@ func NewPrivilegesHandler(load func(context.Context) ([]Privilege, error), optio
 	if len(options) >= 1 {
 		logError = options[0]
 	}
-	return NewDefaultPrivilegesHandler(load, logError, nil)
+	return NewPrivilegesHandlerWithLog(load, logError, nil)
 }
-func NewDefaultPrivilegesHandler(load func(context.Context) ([]Privilege, error), logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, options ...string) *PrivilegesHandler {
+func NewPrivilegesHandlerWithLog(load func(context.Context) ([]Privilege, error), logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, options ...string) *PrivilegesHandler {
 	var resource, action string
 	if len(options) >= 1 {
 		resource = options[0]
