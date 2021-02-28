@@ -29,72 +29,69 @@ type Status struct {
 	Error                 int `mapstructure:"error"`
 }
 
-func InitStatus(c0 *StatusConfig) Status {
-	var c StatusConfig
-	if c0 != nil {
-		c = *c0
+func InitStatus(c *StatusConfig) Status {
+	var x StatusConfig
+	if c != nil {
+		x = *c
 	}
 	var s Status
-	if c.Error != nil {
-		s.Error = *c.Error
-	} else {
-		s.Error = 4
-	}
-	if c.Fail != nil {
-		s.Fail = *c.Fail
+	if x.Fail != nil {
+		s.Fail = *x.Fail
 	} else {
 		s.Fail = 0
 	}
-	if c.Success != nil {
-		s.Success = *c.Success
+	if x.Success != nil {
+		s.Success = *x.Success
 	} else {
 		s.Success = 1
 	}
-	if c.SuccessAndReactivated != nil {
-		s.SuccessAndReactivated = *c.SuccessAndReactivated
+	if x.SuccessAndReactivated != nil {
+		s.SuccessAndReactivated = *x.SuccessAndReactivated
 	} else {
 		s.SuccessAndReactivated = s.Success
 	}
-	if c.TwoFactorRequired != nil {
-		s.TwoFactorRequired = *c.TwoFactorRequired
+	if x.TwoFactorRequired != nil {
+		s.TwoFactorRequired = *x.TwoFactorRequired
 	} else {
 		s.TwoFactorRequired = 2
 	}
-	if c.WrongPassword != nil {
-		s.WrongPassword = *c.WrongPassword
+	if x.WrongPassword != nil {
+		s.WrongPassword = *x.WrongPassword
 	} else {
 		s.WrongPassword = s.Fail
 	}
-	if c.PasswordExpired != nil {
-		s.PasswordExpired = *c.PasswordExpired
+	if x.PasswordExpired != nil {
+		s.PasswordExpired = *x.PasswordExpired
 	} else {
 		s.PasswordExpired = s.Fail
 	}
-	if c.AccessTimeLocked != nil {
-		s.AccessTimeLocked = *c.AccessTimeLocked
+	if x.AccessTimeLocked != nil {
+		s.AccessTimeLocked = *x.AccessTimeLocked
 	} else {
 		s.AccessTimeLocked = s.Fail
 	}
-	if c.Locked != nil {
-		s.Locked = *c.Locked
+	if x.Locked != nil {
+		s.Locked = *x.Locked
 	} else {
 		s.Locked = s.Fail
 	}
-	if c.Suspended != nil {
-		s.Suspended = *c.Suspended
+	if x.Suspended != nil {
+		s.Suspended = *x.Suspended
 	} else {
 		s.Suspended = s.Fail
 	}
-	if c.Disabled != nil {
-		s.Disabled = *c.Disabled
+	if x.Disabled != nil {
+		s.Disabled = *x.Disabled
 	} else {
 		s.Disabled = s.Fail
 	}
-	if c.Error == nil && s.Error != 4 {
+	if x.Error != nil {
+		s.Error = *x.Error
+	} else {
 		s.Error = s.Fail
 	}
-	if c.NotFound != nil {
-		s.NotFound = *c.NotFound
+	if x.NotFound != nil {
+		s.NotFound = *x.NotFound
 	} else {
 		s.NotFound = s.Fail
 	}
