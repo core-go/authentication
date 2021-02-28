@@ -15,6 +15,8 @@ type SchemaConfig struct {
 	Status              string `mapstructure:"status"`
 
 	Contact        string `mapstructure:"contact"`
+	Email          string `mapstructure:"email"`
+	Phone          string `mapstructure:"phone"`
 	DisplayName    string `mapstructure:"display_name"`
 	MaxPasswordAge string `mapstructure:"max_password_age"`
 	UserType       string `mapstructure:"user_type"`

@@ -1,6 +1,7 @@
 package auth
 
 type StatusConfig struct {
+	NotFound              *int `mapstructure:"not_found"`
 	Fail                  *int `mapstructure:"fail"`
 	Success               *int `mapstructure:"success"`
 	SuccessAndReactivated *int `mapstructure:"success_and_reactivated"`
@@ -14,6 +15,7 @@ type StatusConfig struct {
 	Error                 *int `mapstructure:"Error"`
 }
 type Status struct {
+	NotFound              int `mapstructure:"not_found"`
 	Fail                  int `mapstructure:"fail"`
 	Success               int `mapstructure:"success"`
 	SuccessAndReactivated int `mapstructure:"success_and_reactivated"`
@@ -90,6 +92,11 @@ func InitStatus(c0 *StatusConfig) Status {
 	}
 	if c.Error == nil && s.Error != 4 {
 		s.Error = s.Fail
+	}
+	if c.NotFound != nil {
+		s.NotFound = *c.NotFound
+	} else {
+		s.NotFound = s.Fail
 	}
 	return s
 }

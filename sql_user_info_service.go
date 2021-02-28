@@ -30,7 +30,7 @@ func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus st
 	driver := GetDriver(db)
 	if handleDriver {
 		query = ReplaceQueryArgs(driver, query)
-		sqlPass = ReplaceQueryArgs(driver,sqlPass)
+		sqlPass = ReplaceQueryArgs(driver, sqlPass)
 	}
 	return &SqlUserInfoService{DB: db, Query: query, SqlPass: sqlPass, SqlFail: sqlFail, DisableStatus: disableStatus, SuspendedStatus: suspendedStatus, NoTime: noTime, Driver: driver}
 }
@@ -85,10 +85,10 @@ func (l SqlUserInfoService) Pass(ctx context.Context, user UserInfo) error {
 		return nil
 	}
 	if l.NoTime {
-		_, err := l.DB.Exec(l.SqlPass, user.UserId)
+		_, err := l.DB.Exec(l.SqlPass, user.Id)
 		return err
 	} else {
-		_, err := l.DB.Exec(l.SqlPass, time.Now(), user.UserId)
+		_, err := l.DB.Exec(l.SqlPass, time.Now(), user.Id)
 		return err
 	}
 }
@@ -97,10 +97,10 @@ func (l SqlUserInfoService) Fail(ctx context.Context, user UserInfo) error {
 		return nil
 	}
 	if l.NoTime {
-		_, err := l.DB.Exec(l.SqlFail, user.UserId)
+		_, err := l.DB.Exec(l.SqlFail, user.Id)
 		return err
 	} else {
-		_, err := l.DB.Exec(l.SqlFail, time.Now(), user.UserId)
+		_, err := l.DB.Exec(l.SqlFail, time.Now(), user.Id)
 		return err
 	}
 }

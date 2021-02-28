@@ -28,6 +28,8 @@ type SqlAuthenticationRepository struct {
 	PasswordChangedTimeName string
 	PasswordName            string
 	ContactName             string
+	EmailName               string
+	PhoneName               string
 	DisplayNameName         string
 	MaxPasswordAgeName      string
 	UserTypeName            string
@@ -38,33 +40,35 @@ type SqlAuthenticationRepository struct {
 	TwoFactorsName          string
 }
 
-func NewSqlAuthenticationRepositoryByConfig(db *sq.DB, userTableName, passwordTableName string, activatedStatus string, status UserStatusConfig, c SchemaConfig, options...func(context.Context, string) (bool, error)) *SqlAuthenticationRepository {
-	return NewSqlAuthenticationRepository(db, userTableName, passwordTableName, activatedStatus, status, c.Id, c.UserName, c.UserId, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.PasswordChangedTime, c.Password, c.Contact, c.DisplayName, c.MaxPasswordAge, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors, options...)
+func NewSqlAuthenticationRepositoryByConfig(db *sq.DB, userTableName, passwordTableName string, activatedStatus string, status UserStatusConfig, c SchemaConfig, options ...func(context.Context, string) (bool, error)) *SqlAuthenticationRepository {
+	return NewSqlAuthenticationRepository(db, userTableName, passwordTableName, activatedStatus, status, c.Id, c.UserName, c.UserId, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.PasswordChangedTime, c.Password, c.Contact, c.Email, c.Phone, c.DisplayName, c.MaxPasswordAge, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors, options...)
 }
 
-func NewSqlAuthenticationRepository(db *sq.DB, userTableName, passwordTableName string, activatedStatus string, status UserStatusConfig, idName, userName, userID, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, emailName, displayNameName, maxPasswordAgeName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string, options...func(context.Context, string) (bool, error)) *SqlAuthenticationRepository {
+func NewSqlAuthenticationRepository(db *sq.DB, userTableName, passwordTableName string, activatedStatus string, status UserStatusConfig, idName, userName, userID, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, contactName, emailName, phoneName, displayNameName, maxPasswordAgeName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string, options ...func(context.Context, string) (bool, error)) *SqlAuthenticationRepository {
 	var checkTwoFactors func(context.Context, string) (bool, error)
 	if len(options) >= 1 {
 		checkTwoFactors = options[0]
 	}
 	return &SqlAuthenticationRepository{
-		db:                  db,
-		userTableName:       strings.ToLower(userTableName),
-		passwordTableName:   strings.ToLower(passwordTableName),
-		CheckTwoFactors:     checkTwoFactors,
-		activatedStatus:     strings.ToLower(activatedStatus),
-		Status:              status,
-		IdName:              strings.ToLower(idName),
-		UserName:            strings.ToLower(userName),
-		UserId:              strings.ToLower(userID),
-		SuccessTimeName:     strings.ToLower(successTimeName),
-		FailTimeName:        strings.ToLower(failTimeName),
-		FailCountName:       strings.ToLower(failCountName),
-		LockedUntilTimeName: strings.ToLower(lockedUntilTimeName),
-		StatusName:          strings.ToLower(statusName),
+		db:                      db,
+		userTableName:           strings.ToLower(userTableName),
+		passwordTableName:       strings.ToLower(passwordTableName),
+		CheckTwoFactors:         checkTwoFactors,
+		activatedStatus:         strings.ToLower(activatedStatus),
+		Status:                  status,
+		IdName:                  strings.ToLower(idName),
+		UserName:                strings.ToLower(userName),
+		UserId:                  strings.ToLower(userID),
+		SuccessTimeName:         strings.ToLower(successTimeName),
+		FailTimeName:            strings.ToLower(failTimeName),
+		FailCountName:           strings.ToLower(failCountName),
+		LockedUntilTimeName:     strings.ToLower(lockedUntilTimeName),
+		StatusName:              strings.ToLower(statusName),
 		PasswordChangedTimeName: strings.ToLower(passwordChangedTimeName),
 		PasswordName:            strings.ToLower(passwordName),
-		ContactName:             strings.ToLower(emailName),
+		ContactName:             strings.ToLower(contactName),
+		EmailName:               strings.ToLower(emailName),
+		PhoneName:               strings.ToLower(phoneName),
 		DisplayNameName:         strings.ToLower(displayNameName),
 		MaxPasswordAgeName:      strings.ToLower(maxPasswordAgeName),
 		UserTypeName:            strings.ToLower(userTypeName),
@@ -78,7 +82,7 @@ func NewSqlAuthenticationRepository(db *sq.DB, userTableName, passwordTableName 
 
 func (r *SqlAuthenticationRepository) GetUserInfo(ctx context.Context, userid string) (*UserInfo, error) {
 	userInfo := UserInfo{}
-	strSQL :=""
+	strSQL := ""
 	if len(r.StatusName) > 0 {
 		strSQL += r.StatusName + ", "
 	}
@@ -89,12 +93,17 @@ func (r *SqlAuthenticationRepository) GetUserInfo(ctx context.Context, userid st
 		strSQL += r.IdName + ", "
 	}
 	if len(r.UserName) > 0 {
-		strSQL += "userid as "+ r.UserName + ", "
+		strSQL += "userid as " + r.UserName + ", "
 	}
 	if len(r.ContactName) > 0 {
 		strSQL += r.ContactName + ", "
 	}
-
+	if len(r.EmailName) > 0 {
+		strSQL += r.EmailName + ", "
+	}
+	if len(r.PhoneName) > 0 {
+		strSQL += r.PhoneName + ", "
+	}
 	if len(r.DisplayNameName) > 0 {
 		strSQL += "CONCAT(firstname, ' ', lastname) as " + r.DisplayNameName + ", "
 	}
@@ -104,14 +113,14 @@ func (r *SqlAuthenticationRepository) GetUserInfo(ctx context.Context, userid st
 	}
 
 	if len(r.UserTypeName) > 0 {
-		strSQL += "roletype as " + r.UserTypeName +", "
+		strSQL += "roletype as " + r.UserTypeName + ", "
 	}
 
 	if len(r.AccessDateFromName) > 0 {
-		strSQL +=  "datefrom as " + r.AccessDateFromName + ", "
+		strSQL += "datefrom as " + r.AccessDateFromName + ", "
 	}
 	if len(r.AccessDateToName) > 0 {
-		strSQL +=  "dateto as " + r.AccessDateToName + ", "
+		strSQL += "dateto as " + r.AccessDateToName + ", "
 	}
 
 	if len(r.AccessTimeFromName) > 0 {
@@ -145,33 +154,33 @@ func (r *SqlAuthenticationRepository) GetUserInfo(ctx context.Context, userid st
 	if len(r.PasswordChangedTimeName) > 0 {
 		strSQL += r.PasswordChangedTimeName + ", "
 	}
-	strSQL = strings.TrimRight(strSQL,", ")
+	strSQL = strings.TrimRight(strSQL, ", ")
 	if r.userTableName == r.passwordTableName {
 		query := `SELECT ` + strSQL +
 			` FROM ` + r.userTableName +
 			` WHERE userid = ?
 			LIMIT 1`
-		rows, err := r.db.Query(query,userid)
+		rows, err := r.db.Query(query, userid)
 		if err != nil {
 			return nil, err
 		}
 		defer rows.Close()
 		for rows.Next() {
-			SqlScanStruct(rows,&userInfo)
+			SqlScanStruct(rows, &userInfo)
 		}
 	} else {
 		query := `SELECT ` + strSQL +
 			` FROM ` + r.userTableName +
 			` INNER JOIN ` + r.passwordTableName +
-			` ON ` + r.passwordTableName + `.` +  r.UserId + " = " + r.userTableName + "." + r.UserId +
+			` ON ` + r.passwordTableName + `.` + r.UserId + " = " + r.userTableName + "." + r.UserId +
 			` WHERE ` + r.userTableName + `.` + `userid = ?`
-		rows, err := r.db.Query(query,userid)
+		rows, err := r.db.Query(query, userid)
 		if err != nil {
 			return nil, err
 		}
 		defer rows.Close()
 		for rows.Next() {
-			SqlScanStruct(rows,&userInfo)
+			SqlScanStruct(rows, &userInfo)
 		}
 	}
 	return &userInfo, nil
@@ -325,7 +334,7 @@ func SqlScanStruct(rows *sq.Rows, outputStruct interface{}) error {
 		//			FROM %s
 		//			WHERE %s = ?")
 		//query = fmt.Sprintf(query, r.userTableName, r.idName)
-		rows, err := r.db.Table(r.userTableName).Where(r.UserId+" = ?", username).Select("*").Rows()
+		rows, err := r.db.Table(r.userTableName).Where(r.Id+" = ?", username).Select("*").Rows()
 		//err := r.db.Table(r.userTableName).Raw(query, userName).Scan(&result).Pluck(r.statusName, &status).Error
 		if err != nil {
 			return nil, err
@@ -415,9 +424,9 @@ func SqlScanStruct(rows *sq.Rows, outputStruct interface{}) error {
 		name, ok := value[r.IdName]
 		if ok {
 			if e, k := name.([]uint8); k {
-				userInfo.UserId = string(e)
+				userInfo.Id = string(e)
 			} else if f, k := name.(int64); k {
-				userInfo.UserId = strconv.FormatInt(f, 10)
+				userInfo.Id = strconv.FormatInt(f, 10)
 			}
 		}
 	}
@@ -460,7 +469,7 @@ func SqlScanStruct(rows *sq.Rows, outputStruct interface{}) error {
 		maxPasswordAge, ok := value[r.UserTypeName]
 		if ok {
 			if e, k := maxPasswordAge.([]uint8); k {
-				userInfo.UserType = string(e)
+				userInfo.Type = string(e)
 			}
 		}
 	}
@@ -559,7 +568,7 @@ func SqlScanStruct(rows *sq.Rows, outputStruct interface{}) error {
 	}
 
 	if r.CheckTwoFactors != nil {
-		id := userInfo.UserId
+		id := userInfo.Id
 		if len(id) == 0 {
 			id = username
 		}
@@ -707,18 +716,18 @@ func patch(db *sq.DB, table string, model map[string]interface{}, query map[stri
 	objectUpdateValue := ""
 	keyUpdate := ""
 	keyValue := ""
-	for k,v := range model {
+	for k, v := range model {
 		objectUpdate = k
 		objectUpdateValue = fmt.Sprintf("%v", v)
 	}
-	for k,v := range query {
+	for k, v := range query {
 		keyUpdate = k
 		keyValue = fmt.Sprintf("%v", v)
 	}
 	strSql := `UPDATE ` + table + `
  SET ` + objectUpdate + " = " + objectUpdateValue +
-` WHERE ` +  keyUpdate + " = " + keyValue
-	result,err := db.Exec(strSql)
+		` WHERE ` + keyUpdate + " = " + keyValue
+	result, err := db.Exec(strSql)
 	if err != nil {
 		return 0, err
 	}
