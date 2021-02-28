@@ -260,7 +260,7 @@ func (s *DefaultAuthenticator) Authenticate(ctx context.Context, info AuthInfo) 
 			return result, er5
 		}
 		if privileges != nil && len(privileges) > 0 {
-			account.Privileges = &privileges
+			account.Privileges = privileges
 		}
 	}
 	result.User = &account
@@ -288,7 +288,9 @@ func mapUserInfoToUserAccount(user UserInfo) UserAccount {
 	account.Id = user.Id
 	account.Username = user.Username
 	account.Type = user.UserType
-	account.Roles = user.Roles
+	if user.Roles != nil {
+		account.Roles = user.Roles
+	}
 	if len(user.Id) > 0 {
 		account.Id = user.Id
 	}
@@ -357,7 +359,7 @@ func UserAccountToPayload(ctx context.Context, u *UserAccount, s PayloadConfig) 
 		payload[s.UserType] = u.Type
 		u.Type = ""
 	}
-	if s.Roles != "" && u.Roles != nil && len(*u.Roles) > 0 {
+	if s.Roles != "" && u.Roles != nil && len(u.Roles) > 0 {
 		payload[s.Roles] = u.Roles
 		u.Roles = nil
 	}
@@ -384,15 +386,23 @@ func ToPayload(ctx context.Context, user *UserInfo, s PayloadConfig) map[string]
 		payload[s.Contact] = user.Contact
 		user.Contact = ""
 	}
+	if len(s.Email) > 0 && len(user.Email) > 0 {
+		payload[s.Email] = user.Email
+		user.Email = ""
+	}
+	if len(s.Phone) > 0 && len(user.Phone) > 0 {
+		payload[s.Phone] = user.Phone
+		user.Phone = ""
+	}
 	if len(s.UserType) > 0 && len(user.UserType) > 0 {
 		payload[s.UserType] = user.UserType
 		user.UserType = ""
 	}
-	if len(s.Roles) > 0 && user.Roles != nil && len(*user.Roles) > 0 {
+	if len(s.Roles) > 0 && user.Roles != nil && len(user.Roles) > 0 {
 		payload[s.Roles] = user.Roles
 		user.Roles = nil
 	}
-	if len(s.Privileges) > 0 && user.Privileges != nil && len(*user.Privileges) > 0 {
+	if len(s.Privileges) > 0 && user.Privileges != nil && len(user.Privileges) > 0 {
 		payload[s.Roles] = user.Privileges
 		user.Privileges = nil
 	}
