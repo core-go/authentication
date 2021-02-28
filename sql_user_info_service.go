@@ -26,7 +26,13 @@ type SqlUserInfoService struct {
 	Driver          string
 }
 
-func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus string, suspendedStatus string, noTime bool, handleDriver bool) *SqlUserInfoService {
+func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus string, suspendedStatus string, noTime bool, options...bool) *SqlUserInfoService {
+	var handleDriver bool
+	if len(options) >= 1 {
+		handleDriver = options[0]
+	} else {
+		handleDriver = true
+	}
 	driver := GetDriver(db)
 	if handleDriver {
 		query = ReplaceQueryArgs(driver, query)
@@ -35,8 +41,8 @@ func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus st
 	return &SqlUserInfoService{DB: db, Query: query, SqlPass: sqlPass, SqlFail: sqlFail, DisableStatus: disableStatus, SuspendedStatus: suspendedStatus, NoTime: noTime, Driver: driver}
 }
 
-func NewSqlUserInfoByConfig(db *sql.DB, c SqlConfig) *SqlUserInfoService {
-	return NewSqlUserInfoService(db, c.Query, c.SqlPass, c.SqlFail, c.DisableStatus, c.SuspendedStatus, c.NoTime, true)
+func NewSqlUserInfoByConfig(db *sql.DB, c SqlConfig, options...bool) *SqlUserInfoService {
+	return NewSqlUserInfoService(db, c.Query, c.SqlPass, c.SqlFail, c.DisableStatus, c.SuspendedStatus, c.NoTime, options...)
 }
 func (l SqlUserInfoService) GetUserInfo(ctx context.Context, auth AuthInfo) (*UserInfo, error) {
 	models := make([]UserInfo, 0)
