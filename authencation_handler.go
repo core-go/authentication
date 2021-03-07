@@ -14,6 +14,7 @@ import (
 type AuthenticationHandler struct {
 	Auth          func(ctx context.Context, user AuthInfo) (AuthResult, error)
 	SystemError   int
+	Timeout       int
 	Error         func(context.Context, string)
 	Ip            string
 	UserId        string
@@ -26,7 +27,7 @@ type AuthenticationHandler struct {
 	EncryptionKey string
 }
 
-func NewAuthenticationHandlerWithDecrypter(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, logError func(context.Context, string), addTokenIntoWhitelist func(id string, token string) error, ipFromRequest bool, decrypt func(cipherText string, secretKey string) (string, error), encryptionKey string, writeLog func(context.Context, string, string, bool, string) error, options ...string) *AuthenticationHandler {
+func NewAuthenticationHandlerWithDecrypter(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, timeout int, logError func(context.Context, string), addTokenIntoWhitelist func(id string, token string) error, ipFromRequest bool, decrypt func(cipherText string, secretKey string) (string, error), encryptionKey string, writeLog func(context.Context, string, string, bool, string) error, options ...string) *AuthenticationHandler {
 	var ip, userId, resource, action string
 	if len(options) >= 1 {
 		ip = options[0]
@@ -48,21 +49,21 @@ func NewAuthenticationHandlerWithDecrypter(authenticate func(context.Context, Au
 	} else {
 		action = "authenticate"
 	}
-	return &AuthenticationHandler{Auth: authenticate, SystemError: systemError, Resource: resource, Action: action, Error: logError, Ip: ip, UserId: userId, Whitelist: addTokenIntoWhitelist, Log: writeLog, Decrypt: decrypt, EncryptionKey: encryptionKey, IpFromRequest: ipFromRequest}
+	return &AuthenticationHandler{Auth: authenticate, SystemError: systemError, Timeout: timeout, Resource: resource, Action: action, Error: logError, Ip: ip, UserId: userId, Whitelist: addTokenIntoWhitelist, Log: writeLog, Decrypt: decrypt, EncryptionKey: encryptionKey, IpFromRequest: ipFromRequest}
 }
-func NewAuthenticationHandler(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, logError func(context.Context, string), options ...func(context.Context, string, string, bool, string) error) *AuthenticationHandler {
+func NewAuthenticationHandler(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, timeout int, logError func(context.Context, string), options ...func(context.Context, string, string, bool, string) error) *AuthenticationHandler {
 	var writeLog func(context.Context, string, string, bool, string) error
 	if len(options) >= 1 {
 		writeLog = options[0]
 	}
-	return NewAuthenticationHandlerWithDecrypter(authenticate, systemError, logError, nil, true, nil, "", writeLog, "ip", "userId", "authentication", "authenticate")
+	return NewAuthenticationHandlerWithDecrypter(authenticate, systemError, timeout, logError, nil, true, nil, "", writeLog, "ip", "userId", "authentication", "authenticate")
 }
-func NewAuthenticationHandlerWithWhitelist(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, logError func(context.Context, string), addTokenIntoWhitelist func(id string, token string) error, ipFromRequest bool, options ...func(context.Context, string, string, bool, string) error) *AuthenticationHandler {
+func NewAuthenticationHandlerWithWhitelist(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, timeout int, logError func(context.Context, string), addTokenIntoWhitelist func(id string, token string) error, ipFromRequest bool, options ...func(context.Context, string, string, bool, string) error) *AuthenticationHandler {
 	var writeLog func(context.Context, string, string, bool, string) error
 	if len(options) >= 1 {
 		writeLog = options[0]
 	}
-	return NewAuthenticationHandlerWithDecrypter(authenticate, systemError, logError, addTokenIntoWhitelist, ipFromRequest, nil, "", writeLog, "ip", "userId", "authentication", "authenticate")
+	return NewAuthenticationHandlerWithDecrypter(authenticate, systemError, timeout, logError, addTokenIntoWhitelist, ipFromRequest, nil, "", writeLog, "ip", "userId", "authentication", "authenticate")
 }
 
 func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Request) {
@@ -138,11 +139,15 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 
 	result, er3 := h.Auth(r.Context(), user)
 	if er3 != nil {
-		result.Status = h.SystemError
 		if h.Error != nil {
 			h.Error(r.Context(), er3.Error())
 		}
-		respond(w, r, http.StatusOK, result, h.Log, h.Resource, h.Action, false, er3.Error())
+		if result.Status == h.Timeout {
+			respond(w, r, http.StatusGatewayTimeout, "Timeout", h.Log, h.Resource, h.Action, false, er3.Error())
+		} else {
+			result.Status = h.SystemError
+			respond(w, r, http.StatusInternalServerError, result, h.Log, h.Resource, h.Action, false, er3.Error())
+		}
 	} else {
 		if h.Whitelist != nil {
 			h.Whitelist(result.User.Id, result.User.Token)
