@@ -1,6 +1,7 @@
 package auth
 
 type StatusConfig struct {
+	Timeout               *int `mapstructure:"timeout"`
 	NotFound              *int `mapstructure:"not_found"`
 	Fail                  *int `mapstructure:"fail"`
 	Success               *int `mapstructure:"success"`
@@ -15,6 +16,7 @@ type StatusConfig struct {
 	Error                 *int `mapstructure:"Error"`
 }
 type Status struct {
+	Timeout               int `mapstructure:"timeout"`
 	NotFound              int `mapstructure:"not_found"`
 	Fail                  int `mapstructure:"fail"`
 	Success               int `mapstructure:"success"`
@@ -35,6 +37,11 @@ func InitStatus(c *StatusConfig) Status {
 		x = *c
 	}
 	var s Status
+	if x.Timeout != nil {
+		s.Timeout = *x.Timeout
+	} else {
+		s.Timeout = -1
+	}
 	if x.Fail != nil {
 		s.Fail = *x.Fail
 	} else {
