@@ -71,7 +71,7 @@ func NewAuthenticatorWithTwoFactors(status Status, userInfoService UserInfoServi
 		panic(errors.New("when using two-factor, codeService and sendCode must not be nil, and codeExpires must be greater than 0"))
 	}
 	var generate func() string
-	if len(options) >= 0 {
+	if len(options) >= 1 {
 		generate = options[0]
 	}
 	service := &DefaultAuthenticator{
