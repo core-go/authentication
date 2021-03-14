@@ -20,6 +20,26 @@ type Module struct {
 	Parent      *string `json:"parent" gorm:"column:parent" bson:"parent" dynamodbav:"parent,omitempty" firestore:"parent,omitempty" sql:"parent"`
 }
 
+func OrPermissions(modules []Module) []Module {
+	if modules == nil || len(modules) <= 1 {
+		return modules
+	}
+	ms := make([]Module, 0)
+	SortModulesById(modules)
+	l1 := len(modules) - 1
+	l := len(modules)
+	for i := 0; i < l1; {
+		for j := i + 1; j < l; j++ {
+			if modules[i].Id == modules[j].Id {
+				modules[i].Permissions = modules[i].Permissions | modules[j].Permissions
+			} else {
+				ms = append(ms, modules[i])
+				i = j
+			}
+		}
+	}
+	return ms
+}
 func ToPrivileges(modules []Module) []Privilege {
 	var menuModule []Privilege
 	SortModulesById(modules) // sort by id
