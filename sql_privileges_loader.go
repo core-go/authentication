@@ -15,25 +15,32 @@ type SqlPrivilegesLoader struct {
 	NoSequence     bool
 	HandleDriver   bool
 	Driver         string
+	Or             bool
 }
-func NewPrivilegesLoader(db *sql.DB, query string, options...int) *SqlPrivilegesLoader {
+
+func NewPrivilegesLoader(db *sql.DB, query string, options ...int) *SqlPrivilegesLoader {
 	var parameterCount int
 	if len(options) >= 1 && options[0] > 0 {
 		parameterCount = options[0]
 	} else {
 		parameterCount = 0
 	}
-	return NewSqlPrivilegesLoader(db, query, parameterCount, true, true)
+	return NewSqlPrivilegesLoader(db, query, parameterCount, false, true, true)
 }
-func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int, options...bool) *SqlPrivilegesLoader {
-	var handleDriver, noSequence bool
+func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int, options ...bool) *SqlPrivilegesLoader {
+	var or, handleDriver, noSequence bool
 	if len(options) >= 1 {
-		handleDriver = options[0]
+		or = options[0]
+	} else {
+		or = false
+	}
+	if len(options) >= 2 {
+		handleDriver = options[1]
 	} else {
 		handleDriver = true
 	}
-	if len(options) >= 2 {
-		noSequence = options[1]
+	if len(options) >= 3 {
+		noSequence = options[2]
 	} else {
 		noSequence = true
 	}
@@ -41,7 +48,7 @@ func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int, option
 	if handleDriver {
 		query = ReplaceQueryArgs(driver, query)
 	}
-	return &SqlPrivilegesLoader{DB: db, Query: query, ParameterCount: parameterCount, NoSequence: noSequence, HandleDriver: handleDriver, Driver: driver}
+	return &SqlPrivilegesLoader{DB: db, Query: query, ParameterCount: parameterCount, Or: or, NoSequence: noSequence, HandleDriver: handleDriver, Driver: driver}
 }
 func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, error) {
 	models := make([]Module, 0)
@@ -78,6 +85,9 @@ func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, 
 		if c, ok := v.(*Module); ok {
 			models = append(models, *c)
 		}
+	}
+	if l.Or {
+		models = OrPermissions(models)
 	}
 	var p []Privilege
 	if l.NoSequence == true {
