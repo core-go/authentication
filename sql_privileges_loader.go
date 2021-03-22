@@ -67,6 +67,7 @@ func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, 
 	}
 	defer rows.Close()
 	columns, er2 := rows.Columns()
+	hasPermission := HasPermissions(columns)
 	if er2 != nil {
 		return p0, er2
 	}
@@ -86,7 +87,7 @@ func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, 
 			models = append(models, *c)
 		}
 	}
-	if l.Or {
+	if hasPermission && l.Or {
 		models = OrPermissions(models)
 	}
 	var p []Privilege
@@ -97,7 +98,15 @@ func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, 
 	}
 	return p, nil
 }
-
+func HasPermissions(cols []string) bool {
+	for _, col := range cols {
+		lcol := strings.ToLower(col)
+		if lcol == "permissions" {
+			return true
+		}
+	}
+	return false
+}
 func ScanType(rows *sql.Rows, modelTypes reflect.Type, indexes []int) (t []interface{}, err error) {
 	for rows.Next() {
 		initArray := reflect.New(modelTypes).Interface()
