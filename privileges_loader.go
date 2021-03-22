@@ -15,9 +15,9 @@ type Module struct {
 	Resource    *string `json:"resource,omitempty" gorm:"column:resource_key" bson:"resource,omitempty" dynamodbav:"resource,omitempty" firestore:"resource,omitempty" sql:"resource"`
 	Path        *string `json:"path,omitempty" gorm:"column:path" bson:"path,omitempty" dynamodbav:"path,omitempty" firestore:"path,omitempty" sql:"path"`
 	Icon        *string `json:"icon,omitempty" gorm:"column:icon" bson:"icon,omitempty" dynamodbav:"icon,omitempty" firestore:"icon,omitempty" sql:"icon"`
-	Permissions int32   `json:"permissions" gorm:"column:permissions" bson:"permissions" dynamodbav:"permissions,omitempty" firestore:"permissions,omitempty" sql:"permissions"`
-	Sequence    int     `json:"sequence" gorm:"column:sequence" bson:"sequence" dynamodbav:"sequence,omitempty" firestore:"sequence,omitempty" sql:"sequence"`
 	Parent      *string `json:"parent" gorm:"column:parent" bson:"parent" dynamodbav:"parent,omitempty" firestore:"parent,omitempty" sql:"parent"`
+	Sequence    int     `json:"sequence" gorm:"column:sequence" bson:"sequence" dynamodbav:"sequence,omitempty" firestore:"sequence,omitempty" sql:"sequence"`
+	Permissions int32   `json:"permissions" gorm:"column:permissions" bson:"permissions" dynamodbav:"permissions,omitempty" firestore:"permissions,omitempty" sql:"permissions"`
 }
 
 func OrPermissions(modules []Module) []Module {
@@ -32,6 +32,11 @@ func OrPermissions(modules []Module) []Module {
 		for j := i + 1; j < l; j++ {
 			if modules[i].Id == modules[j].Id {
 				modules[i].Permissions = modules[i].Permissions | modules[j].Permissions
+				if j == l1 {
+					ms = append(ms, modules[i])
+					i = l1 + 3
+					break
+				}
 			} else {
 				ms = append(ms, modules[i])
 				i = j
@@ -46,9 +51,10 @@ func ToPrivileges(modules []Module) []Privilege {
 	root := FindRootModules(modules)
 	for _, v := range root {
 		par := Privilege{
-			Id:       v.Id,
-			Name:     v.Name,
-			Sequence: v.Sequence,
+			Id:          v.Id,
+			Name:        v.Name,
+			Sequence:    v.Sequence,
+			Permissions: v.Permissions,
 		}
 		if v.Resource != nil {
 			par.Resource = *v.Resource
@@ -64,9 +70,10 @@ func ToPrivileges(modules []Module) []Privilege {
 			if modules[i].Parent != nil && v.Id == *modules[i].Parent {
 				item := modules[i]
 				sp := Privilege{
-					Id:       item.Id,
-					Name:     item.Name,
-					Sequence: item.Sequence,
+					Id:          item.Id,
+					Name:        item.Name,
+					Sequence:    item.Sequence,
+					Permissions: item.Permissions,
 				}
 				if item.Resource != nil {
 					sp.Resource = *item.Resource
@@ -93,9 +100,10 @@ func ToPrivilegesWithNoSequence(modules []Module) []Privilege {
 	root := FindRootModules(modules)
 	for _, v := range root {
 		par := Privilege{
-			Id:       v.Id,
-			Name:     v.Name,
-			Sequence: v.Sequence,
+			Id:          v.Id,
+			Name:        v.Name,
+			Sequence:    v.Sequence,
+			Permissions: v.Permissions,
 		}
 		if v.Resource != nil {
 			par.Resource = *v.Resource
@@ -111,9 +119,10 @@ func ToPrivilegesWithNoSequence(modules []Module) []Privilege {
 			if modules[i].Parent != nil && v.Id == *modules[i].Parent {
 				item := modules[i]
 				sp := Privilege{
-					Id:       item.Id,
-					Name:     item.Name,
-					Sequence: item.Sequence,
+					Id:          item.Id,
+					Name:        item.Name,
+					Sequence:    item.Sequence,
+					Permissions: item.Permissions,
 				}
 				if item.Resource != nil {
 					sp.Resource = *item.Resource
@@ -131,11 +140,11 @@ func ToPrivilegesWithNoSequence(modules []Module) []Privilege {
 		menuModule = append(menuModule, par)
 	}
 	SortPrivileges(menuModule)
-	for j :=0; j < len(menuModule); j++ {
+	for j := 0; j < len(menuModule); j++ {
 		menuModule[j].Sequence = 0
 		child := *menuModule[j].Children
 		if child != nil {
-			for x,_ := range child {
+			for x, _ := range child {
 				child[x].Sequence = 0
 			}
 		}
