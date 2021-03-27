@@ -9,11 +9,12 @@ import (
 )
 
 const (
-	DriverPostgres   = "postgres"
-	DriverMysql      = "mysql"
-	DriverMssql      = "mssql"
-	DriverOracle     = "oracle"
-	DriverNotSupport = "no support"
+	DriverPostgres         = "postgres"
+	DriverMysql            = "mysql"
+	DriverMssql            = "mssql"
+	DriverOracle           = "oracle"
+	DriverSqlite3          = "sqlite3"
+	DriverNotSupport       = "no support"
 )
 
 type SqlPrivilegesReader struct {
@@ -85,6 +86,8 @@ func GetDriver(db *sql.DB) string {
 	switch driver {
 	case "*pq.Driver":
 		return DriverPostgres
+	case "*sqlite3.SQLiteDriver":
+		return DriverSqlite3
 	case "*mysql.MySQLDriver":
 		return DriverMysql
 	case "*mssql.Driver":
