@@ -33,10 +33,10 @@ func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus st
 	} else {
 		handleDriver = true
 	}
-	driver := GetDriver(db)
+	driver := getDriver(db)
 	if handleDriver {
-		query = ReplaceQueryArgs(driver, query)
-		sqlPass = ReplaceQueryArgs(driver, sqlPass)
+		query = replaceQueryArgs(driver, query)
+		sqlPass = replaceQueryArgs(driver, sqlPass)
 	}
 	return &SqlUserInfoService{DB: db, Query: query, SqlPass: sqlPass, SqlFail: sqlFail, DisableStatus: disableStatus, SuspendedStatus: suspendedStatus, NoTime: noTime, Driver: driver}
 }
@@ -46,7 +46,7 @@ func NewSqlUserInfoByConfig(db *sql.DB, c SqlConfig, options...bool) *SqlUserInf
 }
 func (l SqlUserInfoService) GetUserInfo(ctx context.Context, auth AuthInfo) (*UserInfo, error) {
 	models := make([]UserInfo, 0)
-	rows, er1 := l.DB.Query(l.Query, auth.Username)
+	rows, er1 := l.DB.QueryContext(ctx, l.Query, auth.Username)
 	if er1 != nil {
 		switch er1 {
 		case sql.ErrNoRows:
@@ -91,10 +91,10 @@ func (l SqlUserInfoService) Pass(ctx context.Context, user UserInfo) error {
 		return nil
 	}
 	if l.NoTime {
-		_, err := l.DB.Exec(l.SqlPass, user.Id)
+		_, err := l.DB.ExecContext(ctx, l.SqlPass, user.Id)
 		return err
 	} else {
-		_, err := l.DB.Exec(l.SqlPass, time.Now(), user.Id)
+		_, err := l.DB.ExecContext(ctx, l.SqlPass, time.Now(), user.Id)
 		return err
 	}
 }
@@ -103,10 +103,10 @@ func (l SqlUserInfoService) Fail(ctx context.Context, user UserInfo) error {
 		return nil
 	}
 	if l.NoTime {
-		_, err := l.DB.Exec(l.SqlFail, user.Id)
+		_, err := l.DB.ExecContext(ctx, l.SqlFail, user.Id)
 		return err
 	} else {
-		_, err := l.DB.Exec(l.SqlFail, time.Now(), user.Id)
+		_, err := l.DB.ExecContext(ctx, l.SqlFail, time.Now(), user.Id)
 		return err
 	}
 }

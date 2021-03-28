@@ -44,9 +44,9 @@ func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int, option
 	} else {
 		noSequence = true
 	}
-	driver := GetDriver(db)
+	driver := getDriver(db)
 	if handleDriver {
-		query = ReplaceQueryArgs(driver, query)
+		query = replaceQueryArgs(driver, query)
 	}
 	return &SqlPrivilegesLoader{DB: db, Query: query, ParameterCount: parameterCount, Or: or, NoSequence: noSequence, HandleDriver: handleDriver, Driver: driver}
 }
@@ -61,7 +61,7 @@ func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, 
 		}
 	}
 	driver := l.Driver
-	rows, er1 := l.DB.Query(l.Query, params...)
+	rows, er1 := l.DB.QueryContext(ctx, l.Query, params...)
 	if er1 != nil {
 		return p0, er1
 	}
