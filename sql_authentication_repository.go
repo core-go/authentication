@@ -2,7 +2,7 @@ package auth
 
 import (
 	"context"
-	sq "database/sql"
+	"database/sql"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -11,7 +11,8 @@ import (
 )
 
 type SqlAuthenticationRepository struct {
-	db                      *sq.DB
+	db                      *sql.DB
+	BuildParam              func(i int) string
 	userTableName           string
 	passwordTableName       string
 	CheckTwoFactors         func(ctx context.Context, id string) (bool, error)
@@ -40,27 +41,32 @@ type SqlAuthenticationRepository struct {
 	TwoFactorsName          string
 }
 
-func NewSqlAuthenticationRepositoryByConfig(db *sq.DB, userTableName, passwordTableName string, activatedStatus string, status UserStatusConfig, c SchemaConfig, options ...func(context.Context, string) (bool, error)) *SqlAuthenticationRepository {
-	return NewSqlAuthenticationRepository(db, userTableName, passwordTableName, activatedStatus, status, c.Id, c.UserName, c.UserId, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.PasswordChangedTime, c.Password, c.Contact, c.Email, c.Phone, c.DisplayName, c.MaxPasswordAge, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors, options...)
+func NewSqlAuthenticationRepositoryByConfig(db *sql.DB, buildParam func(i int) string, userTableName, passwordTableName string, activatedStatus string, status UserStatusConfig, c SchemaConfig, options ...func(context.Context, string) (bool, error)) *SqlAuthenticationRepository {
+	return NewSqlAuthenticationRepository(db, buildParam, userTableName, passwordTableName, activatedStatus, status, c.Id, c.UserName, c.UserId, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.PasswordChangedTime, c.Password, c.Contact, c.Email, c.Phone, c.DisplayName, c.MaxPasswordAge, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors, options...)
 }
 
-func NewSqlAuthenticationRepository(db *sq.DB, userTableName, passwordTableName string, activatedStatus string, status UserStatusConfig, idName, userName, userID, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, contactName, emailName, phoneName, displayNameName, maxPasswordAgeName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string, options ...func(context.Context, string) (bool, error)) *SqlAuthenticationRepository {
+func NewSqlAuthenticationRepository(db *sql.DB, buildParam func(i int) string, userTableName, passwordTableName string, activatedStatus string, status UserStatusConfig, idName, userName, userID, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, contactName, emailName, phoneName, displayNameName, maxPasswordAgeName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string, options ...func(context.Context, string) (bool, error)) *SqlAuthenticationRepository {
 	var checkTwoFactors func(context.Context, string) (bool, error)
 	if len(options) >= 1 {
 		checkTwoFactors = options[0]
 	}
+	var b = buildParam
+	if b == nil {
+		b = getBuild(db)
+	}
 	return &SqlAuthenticationRepository{
-		db:                      db,
-		userTableName:           strings.ToLower(userTableName),
-		passwordTableName:       strings.ToLower(passwordTableName),
-		CheckTwoFactors:         checkTwoFactors,
-		activatedStatus:         strings.ToLower(activatedStatus),
-		Status:                  status,
-		IdName:                  strings.ToLower(idName),
-		UserName:                strings.ToLower(userName),
-		UserId:                  strings.ToLower(userID),
-		SuccessTimeName:         strings.ToLower(successTimeName),
-		FailTimeName:            strings.ToLower(failTimeName),
+		db:                db,
+		BuildParam:        b,
+		userTableName:     strings.ToLower(userTableName),
+		passwordTableName: strings.ToLower(passwordTableName),
+		CheckTwoFactors:   checkTwoFactors,
+		activatedStatus:   strings.ToLower(activatedStatus),
+		Status:            status,
+		IdName:            strings.ToLower(idName),
+		UserName:          strings.ToLower(userName),
+		UserId:            strings.ToLower(userID),
+		SuccessTimeName:   strings.ToLower(successTimeName),
+		FailTimeName:      strings.ToLower(failTimeName),
 		FailCountName:           strings.ToLower(failCountName),
 		LockedUntilTimeName:     strings.ToLower(lockedUntilTimeName),
 		StatusName:              strings.ToLower(statusName),
@@ -158,9 +164,9 @@ func (r *SqlAuthenticationRepository) GetUserInfo(ctx context.Context, userid st
 	if r.userTableName == r.passwordTableName {
 		query := `SELECT ` + strSQL +
 			` FROM ` + r.userTableName +
-			` WHERE userid = ?
-			LIMIT 1`
-		rows, err := r.db.Query(query, userid)
+			` WHERE userid = ` + r.BuildParam(1) +
+			` LIMIT 1`
+		rows, err := r.db.QueryContext(ctx, query, userid)
 		if err != nil {
 			return nil, err
 		}
@@ -173,8 +179,8 @@ func (r *SqlAuthenticationRepository) GetUserInfo(ctx context.Context, userid st
 			` FROM ` + r.userTableName +
 			` INNER JOIN ` + r.passwordTableName +
 			` ON ` + r.passwordTableName + `.` + r.UserId + " = " + r.userTableName + "." + r.UserId +
-			` WHERE ` + r.userTableName + `.` + `userid = ?`
-		rows, err := r.db.Query(query, userid)
+			` WHERE ` + r.userTableName + `.` + `userid = ` + r.BuildParam(1)
+			rows, err := r.db.QueryContext(ctx, query, userid)
 		if err != nil {
 			return nil, err
 		}
@@ -186,7 +192,7 @@ func (r *SqlAuthenticationRepository) GetUserInfo(ctx context.Context, userid st
 	return &userInfo, nil
 }
 
-func SqlScanStruct(rows *sq.Rows, outputStruct interface{}) error {
+func SqlScanStruct(rows *sql.Rows, outputStruct interface{}) error {
 	v := reflect.ValueOf(outputStruct).Elem()
 	if v.Kind() != reflect.Struct {
 		return nil // bail if it's not a struct
@@ -323,302 +329,6 @@ func SqlScanStruct(rows *sq.Rows, outputStruct interface{}) error {
 	return nil
 }
 
-/*func (r *SqlAuthenticationRepository) GetUserInfo(ctx context.Context, username string) (*UserInfo, error) {
-	userInfo := UserInfo{}
-	//result := UserInfo{}
-	//query := ""
-	value := make(map[string]interface{})
-
-	if r.userTableName == r.passwordTableName {
-		//query = fmt.Sprintf("SELECT *
-		//			FROM %s
-		//			WHERE %s = ?")
-		//query = fmt.Sprintf(query, r.userTableName, r.idName)
-		rows, err := r.db.Table(r.userTableName).Where(r.Id+" = ?", username).Select("*").Rows()
-		//err := r.db.Table(r.userTableName).Raw(query, userName).Scan(&result).Pluck(r.statusName, &status).Error
-		if err != nil {
-			return nil, err
-		}
-		if !rows.Next() {
-			if rows.Err() == nil {
-				return nil, errors.New("not found")
-			}
-			return nil, rows.Err()
-		}
-		cols, errc := rows.Columns()
-		if errc != nil {
-			return nil, errc
-		}
-		length := len(cols)
-		columns := make([]interface{}, length)
-		temp := make([]interface{}, length)
-		for i, _ := range columns {
-			temp[i] = &columns[i]
-		}
-		if err := rows.Scan(temp...); err != nil {
-			return nil, err
-		}
-		for i := 0; i < length; i++ {
-			val := temp[i].(*interface{})
-			k := cols[i]
-			value[k] = *val
-		}
-	} else {
-		join := "INNER JOIN " + r.passwordTableName + " on " + r.passwordTableName + "." + r.IdName + " = " + r.userTableName + "." + r.IdName
-		rows, err1 := r.db.Table(r.userTableName).Where(r.userTableName+"."+r.UserName+"= ?", username).Joins(join).Select("*").Rows()
-		if err1 != nil {
-			return nil, err1
-		}
-		if !rows.Next() {
-			if rows.Err() == nil {
-				return nil, errors.New("not found")
-			}
-			return nil, rows.Err()
-		}
-		cols, errc := rows.Columns()
-		if errc != nil {
-			return nil, errc
-		}
-		length := len(cols)
-		columns := make([]interface{}, length)
-		temp := make([]interface{}, length)
-		for i, _ := range columns {
-			temp[i] = &columns[i]
-		}
-		if err := rows.Scan(temp...); err != nil {
-			return nil, err
-		}
-		for i := 0; i < length; i++ {
-			val := temp[i].(*interface{})
-			k := cols[i]
-			value[k] = *val
-		}
-	}
-	if len(r.StatusName) > 0 {
-		//rawStatus := raw.Lookup(r.StatusName)
-		statusInfo, ok := value[r.StatusName]
-		statusUserInfo := ""
-		if ok {
-			switch v := statusInfo.(type) {
-			case int:
-				statusUserInfo = strconv.Itoa(v)
-			case int64:
-				statusUserInfo = strconv.FormatInt(v, 10)
-			case string:
-				statusUserInfo = v
-			case []uint8:
-				statusUserInfo = string(v)
-			case bool:
-				statusUserInfo = strconv.FormatBool(v)
-			default:
-				return nil, fmt.Errorf(r.StatusName+": is of unsupported type %T", v)
-			}
-		}
-
-		userInfo.Deactivated = statusUserInfo == r.Status.Deactivated
-		userInfo.Suspended = statusUserInfo == r.Status.Suspended
-		userInfo.Disable = statusUserInfo == r.Status.Disable
-	}
-
-	if len(r.IdName) > 0 {
-		name, ok := value[r.IdName]
-		if ok {
-			if e, k := name.([]uint8); k {
-				userInfo.Id = string(e)
-			} else if f, k := name.(int64); k {
-				userInfo.Id = strconv.FormatInt(f, 10)
-			}
-		}
-	}
-	if len(r.UserName) > 0 {
-		name, ok := value[r.UserName]
-		if ok {
-			if e, k := name.([]uint8); k {
-				userInfo.Username = string(e)
-			}
-		}
-	}
-	if len(r.ContactName) > 0 {
-		email, ok := value[r.ContactName]
-		if ok {
-			if e, k := email.([]uint8); k {
-				userInfo.Contact = string(e)
-			}
-		}
-	}
-
-	if len(r.DisplayNameName) > 0 {
-		displayName, ok := value[r.DisplayNameName]
-		if ok {
-			if e, k := displayName.([]uint8); k {
-				userInfo.DisplayName = string(e)
-			}
-		}
-	}
-
-	if len(r.MaxPasswordAgeName) > 0 {
-		maxPasswordAge, ok := value[r.MaxPasswordAgeName]
-		if ok {
-			if e, k := maxPasswordAge.(int64); k {
-				userInfo.MaxPasswordAge = int(e)
-			}
-		}
-	}
-
-	if len(r.UserTypeName) > 0 {
-		maxPasswordAge, ok := value[r.UserTypeName]
-		if ok {
-			if e, k := maxPasswordAge.([]uint8); k {
-				userInfo.Type = string(e)
-			}
-		}
-	}
-
-	if len(r.AccessDateFromName) > 0 {
-		accessDateFrom, ok := value[r.AccessDateFromName]
-		if ok {
-			if e, k := accessDateFrom.(time.Time); k {
-				userInfo.AccessDateFrom = &e
-			}
-		}
-	}
-	if len(r.AccessDateToName) > 0 {
-		accessDateTo, ok := value[r.AccessDateToName]
-		if ok {
-			if e, k := accessDateTo.(time.Time); k {
-				userInfo.AccessDateTo = &e
-			}
-		}
-	}
-
-	if len(r.AccessTimeFromName) > 0 {
-		accessTimeFrom, ok := value[r.AccessTimeFromName]
-		if ok {
-			if e, k := accessTimeFrom.(time.Time); k {
-				userInfo.AccessTimeFrom = &e
-			} else if s, k := accessTimeFrom.([]uint8); k {
-				userInfo.AccessTimeFrom = getTime(string(s))
-			}
-		}
-	}
-
-	if len(r.AccessTimeToName) > 0 {
-		accessTimeTo, ok := value[r.AccessTimeToName]
-		if ok {
-			if e, k := accessTimeTo.(time.Time); k {
-				userInfo.AccessTimeTo = &e
-			} else if s, k := accessTimeTo.([]uint8); k {
-				userInfo.AccessTimeTo = getTime(string(s))
-			}
-		}
-	}
-
-	if len(r.PasswordName) > 0 {
-		pass, ok := value[r.PasswordName]
-		if ok {
-			if e, k := pass.([]uint8); k {
-				userInfo.Password = string(e)
-			}
-		}
-	}
-
-	if len(r.LockedUntilTimeName) > 0 {
-		pass, ok := value[r.LockedUntilTimeName]
-		if ok {
-			if e, k := pass.(time.Time); k {
-				userInfo.LockedUntilTime = &e
-			}
-		}
-	}
-
-	if len(r.SuccessTimeName) > 0 {
-		pass, ok := value[r.SuccessTimeName]
-		if ok {
-			if e, k := pass.(time.Time); k {
-				userInfo.SuccessTime = &e
-			}
-		}
-	}
-
-	if len(r.FailTimeName) > 0 {
-		pass, ok := value[r.FailTimeName]
-		if ok {
-			if e, k := pass.(time.Time); k {
-				userInfo.FailTime = &e
-			}
-		}
-	}
-
-	if len(r.FailCountName) > 0 {
-		pass, ok := value[r.FailCountName]
-		if ok {
-			if e, k := pass.(int64); k {
-				userInfo.FailCount = int(e)
-			}
-		}
-	}
-
-	if len(r.PasswordChangedTimeName) > 0 {
-		pass, ok := value[r.PasswordChangedTimeName]
-		if ok {
-			if e, k := pass.(time.Time); k {
-				userInfo.PasswordChangedTime = &e
-			}
-		}
-	}
-
-	if r.CheckTwoFactors != nil {
-		id := userInfo.Id
-		if len(id) == 0 {
-			id = username
-		}
-		ok, er2 := r.CheckTwoFactors.Require(ctx, id)
-		if er2 != nil {
-			return &userInfo, er2
-		}
-		userInfo.TwoFactors = ok
-	} else if len(r.TwoFactorsName) > 0 {
-		if isTwoFactor, ok := value[r.TwoFactorsName]; ok {
-			if b, k := isTwoFactor.(bool); k {
-				userInfo.TwoFactors = b
-			}
-		}
-	}
-	//
-	//if r.userTableName == r.passwordTableName {
-	//	return r.getPasswordInfo(ctx, &userInfo, &result)
-	//}
-
-	return &userInfo, nil
-}*/
-
-//func (r *SqlAuthenticationRepository) getPasswordInfo(ctx context.Context, user *UserInfo, result *UserInfo) (*UserInfo, error) {
-//	if len(r.passwordName) > 0 {
-//		user.Password = result.Password
-//	}
-//
-//	if len(r.lockedUntilTimeName) > 0 {
-//		user.LockedUntilTime = result.LockedUntilTime
-//	}
-//
-//	if len(r.successTimeName) > 0 {
-//		user.SuccessTime = result.SuccessTime
-//	}
-//
-//	if len(r.failTimeName) > 0 {
-//		user.FailTime = result.FailTime
-//	}
-//
-//	if len(r.failCountName) > 0 {
-//		user.FailCount = result.FailCount
-//	}
-//
-//	if len(r.passwordChangedTimeName) > 0 {
-//		user.PasswordChangedTime = result.PasswordChangedTime
-//	}
-//	return user, nil
-//}
-
 func (r *SqlAuthenticationRepository) PassAuthentication(ctx context.Context, userId string) (int64, error) {
 	return r.passAuthenticationAndActivate(ctx, userId, false)
 }
@@ -648,15 +358,15 @@ func (r *SqlAuthenticationRepository) passAuthenticationAndActivate(ctx context.
 		r.IdName: userId,
 	}
 	if !updateStatus {
-		return patch(r.db, r.passwordTableName, pass, query)
+		return patch(ctx, r.db, r.passwordTableName, pass, query)
 	}
 
 	if r.userTableName == r.passwordTableName {
 		pass[r.StatusName] = r.activatedStatus
-		return patch(r.db, r.passwordTableName, pass, query)
+		return patch(ctx, r.db, r.passwordTableName, pass, query)
 	}
 
-	k1, err := patch(r.db, r.passwordTableName, pass, query)
+	k1, err := patch(ctx, r.db, r.passwordTableName, pass, query)
 	if err != nil {
 		return k1, err
 	}
@@ -664,7 +374,7 @@ func (r *SqlAuthenticationRepository) passAuthenticationAndActivate(ctx context.
 	user := make(map[string]interface{})
 	user[r.IdName] = userId
 	user[r.StatusName] = r.activatedStatus
-	k2, err1 := patch(r.db, r.userTableName, user, query)
+	k2, err1 := patch(ctx, r.db, r.userTableName, user, query)
 	return k1 + k2, err1
 }
 
@@ -686,7 +396,7 @@ func (r *SqlAuthenticationRepository) WrongPassword(ctx context.Context, userId 
 	query := map[string]interface{}{
 		r.IdName: userId,
 	}
-	_, err := patch(r.db, r.passwordTableName, pass, query)
+	_, err := patch(ctx, r.db, r.passwordTableName, pass, query)
 	return err
 }
 
@@ -711,7 +421,7 @@ func getTime(accessTime string) *time.Time {
 	}
 	return result.RowsAffected, nil
 }*/
-func patch(db *sq.DB, table string, model map[string]interface{}, query map[string]interface{}) (int64, error) {
+func patch(ctx context.Context, db *sql.DB, table string, model map[string]interface{}, query map[string]interface{}) (int64, error) {
 	objectUpdate := ""
 	objectUpdateValue := ""
 	keyUpdate := ""
@@ -727,9 +437,35 @@ func patch(db *sq.DB, table string, model map[string]interface{}, query map[stri
 	strSql := `UPDATE ` + table + `
  SET ` + objectUpdate + " = " + objectUpdateValue +
 		` WHERE ` + keyUpdate + " = " + keyValue
-	result, err := db.Exec(strSql)
+	result, err := db.ExecContext(ctx, strSql)
 	if err != nil {
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+func buildParam(i int) string {
+	return "?"
+}
+func buildOracleParam(i int) string {
+	return ":val" + strconv.Itoa(i)
+}
+func buildMsSqlParam(i int) string {
+	return "@p" + strconv.Itoa(i)
+}
+func buildDollarParam(i int) string {
+	return "$" + strconv.Itoa(i)
+}
+func getBuild(db *sql.DB) func(i int) string {
+	driver := reflect.TypeOf(db.Driver()).String()
+	switch driver {
+	case "*pq.Driver":
+		return buildDollarParam
+	case "*godror.drv":
+		return buildOracleParam
+	case "*mysql.MySQLDriver":
+		return buildMsSqlParam
+	default:
+		return buildParam
+	}
 }

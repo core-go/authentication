@@ -35,16 +35,16 @@ func NewPrivilegesReader(db *sql.DB, query string, options...bool) *SqlPrivilege
 	} else {
 		noSequence = true
 	}
-	driver := GetDriver(db)
+	driver := getDriver(db)
 	if handleDriver {
-		query = ReplaceQueryArgs(driver, query)
+		query = replaceQueryArgs(driver, query)
 	}
 	return &SqlPrivilegesReader{DB: db, Query: query, NoSequence: noSequence, Driver: driver}
 }
 func (l SqlPrivilegesReader) Privileges(ctx context.Context) ([]Privilege, error) {
 	models := make([]Module, 0)
 	p0 := make([]Privilege, 0)
-	rows, er1 := l.DB.Query(l.Query)
+	rows, er1 := l.DB.QueryContext(ctx, l.Query)
 	if er1 != nil {
 		return p0, er1
 	}
@@ -77,8 +77,7 @@ func (l SqlPrivilegesReader) Privileges(ctx context.Context) ([]Privilege, error
 	}
 	return p, nil
 }
-
-func GetDriver(db *sql.DB) string {
+func getDriver(db *sql.DB) string {
 	if db == nil {
 		return DriverNotSupport
 	}
@@ -86,26 +85,28 @@ func GetDriver(db *sql.DB) string {
 	switch driver {
 	case "*pq.Driver":
 		return DriverPostgres
-	case "*sqlite3.SQLiteDriver":
-		return DriverSqlite3
+	case "*godror.drv":
+		return DriverOracle
 	case "*mysql.MySQLDriver":
 		return DriverMysql
 	case "*mssql.Driver":
 		return DriverMssql
-	case "*godror.drv":
-		return DriverOracle
+	case "*sqlite3.SQLiteDriver":
+		return DriverSqlite3
 	default:
 		return DriverNotSupport
 	}
 }
 
-func ReplaceQueryArgs(driver string, query string) string {
-	if driver == DriverOracle || driver == DriverPostgres {
+func replaceQueryArgs(driver string, query string) string {
+	if driver == DriverOracle || driver == DriverPostgres || driver == DriverMssql {
 		var x string
 		if driver == DriverOracle {
 			x = ":val"
-		} else {
+		} else if driver == DriverPostgres {
 			x = "$"
+		} else if driver == DriverMssql {
+			x = "@p"
 		}
 		i := 1
 		k := strings.Index(query, "?")
