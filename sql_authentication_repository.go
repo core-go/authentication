@@ -463,7 +463,7 @@ func getBuild(db *sql.DB) func(i int) string {
 		return buildDollarParam
 	case "*godror.drv":
 		return buildOracleParam
-	case "*mysql.MySQLDriver":
+	case "*mssql.Driver":
 		return buildMsSqlParam
 	default:
 		return buildParam
