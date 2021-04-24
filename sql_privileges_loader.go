@@ -61,7 +61,7 @@ func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, 
 		}
 	}
 	driver := l.Driver
-	rows, er1 := l.DB.QueryContext(ctx, l.Query, params...)
+	rows, er1 := l.DB.Query(l.Query, params...)
 	if er1 != nil {
 		return p0, er1
 	}
@@ -125,9 +125,10 @@ func StructScan(s interface{}, indexColumns []int) (r []interface{}) {
 	}
 	return
 }
-func GetColumnIndexes(modelType reflect.Type, columnsName []string, driver string) (indexes []int, err error) {
+
+func GetColumnIndex(modelType reflect.Type, columnsName string, driver string) (index int, err error) {
 	if modelType.Kind() != reflect.Struct {
-		return nil, errors.New("bad type")
+		return -1, errors.New("bad type")
 	}
 	for i := 0; i < modelType.NumField(); i++ {
 		field := modelType.Field(i)
@@ -137,11 +138,38 @@ func GetColumnIndexes(modelType reflect.Type, columnsName []string, driver strin
 			column = strings.ToUpper(column)
 		}
 		if ok {
-			if contains(columnsName, column) {
-				indexes = append(indexes, i)
+			if columnsName == column {
+				return i, nil
 			}
 		}
 	}
+	return -1, errors.New("col " + columnsName + "not found")
+}
+
+func GetColumnIndexes(modelType reflect.Type, columnsNames []string, driver string) (indexes []int, err error) {
+	if modelType.Kind() != reflect.Struct {
+		return nil, errors.New("bad type")
+	}
+	for i := 0; i < len(columnsNames); i++ {
+		index, err := GetColumnIndex(modelType, columnsNames[i], driver)
+		if err != nil{
+			return nil, err
+		}
+		indexes = append(indexes, index)
+	}
+	/*for i := 0; i < modelType.NumField(); i++ {
+		field := modelType.Field(i)
+		ormTag := field.Tag.Get("gorm")
+		column, ok := FindTag(ormTag, "column")
+		if driver == DriverOracle {
+			column = strings.ToUpper(column)
+		}
+		if ok {
+			if contains(columnsNames, column) {
+				indexes = append(indexes, i)
+			}
+		}
+	}*/
 	return
 }
 func FindTag(tag string, key string) (string, bool) {
