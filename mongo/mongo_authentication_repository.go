@@ -122,7 +122,7 @@ func (r *MongoAuthenticationRepository) GetUserInfo(ctx context.Context, usernam
 
 	if len(r.MaxPasswordAgeName) > 0 {
 		if raw.Lookup(r.MaxPasswordAgeName).IsNumber() == true {
-			userInfo.MaxPasswordAge = int(raw.Lookup(r.MaxPasswordAgeName).Int32())
+			userInfo.MaxPasswordAge = raw.Lookup(r.MaxPasswordAgeName).Int64()
 		}
 	}
 
