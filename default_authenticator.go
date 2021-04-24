@@ -17,7 +17,7 @@ type DefaultAuthenticator struct {
 	Privileges         func(ctx context.Context, id string) ([]Privilege, error)
 	GenerateToken      func(payload interface{}, secret string, expiresIn int64) (string, error)
 	TokenConfig        TokenConfig
-	CodeExpires        int
+	CodeExpires        int64
 	CodeService        CodeService
 	SendCode           func(ctx context.Context, to string, code string, expireAt time.Time, params interface{}) error
 	GenerateCode       func() string
@@ -30,7 +30,7 @@ func NewBasicAuthenticator(status Status, check func(context.Context, AuthInfo) 
 	}
 	return NewBasicAuthenticatorWithTwoFactors(status, check, userInfoService, generateToken, tokenConfig, payloadConfig, loadPrivileges, nil, nil, 0)
 }
-func NewBasicAuthenticatorWithTwoFactors(status Status, check func(context.Context, AuthInfo) (AuthResult, error), userInfoService UserInfoService, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, loadPrivileges func(context.Context, string) ([]Privilege, error), sendCode func(context.Context, string, string, time.Time, interface{}) error, codeService CodeService, codeExpires int, options ...func() string) *DefaultAuthenticator {
+func NewBasicAuthenticatorWithTwoFactors(status Status, check func(context.Context, AuthInfo) (AuthResult, error), userInfoService UserInfoService, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, loadPrivileges func(context.Context, string) ([]Privilege, error), sendCode func(context.Context, string, string, time.Time, interface{}) error, codeService CodeService, codeExpires int64, options ...func() string) *DefaultAuthenticator {
 	if check == nil {
 		panic(errors.New("basic check cannot be nil"))
 	}
@@ -63,7 +63,7 @@ func NewAuthenticator(status Status, userInfoService UserInfoService, passwordCo
 	}
 	return NewAuthenticatorWithTwoFactors(status, userInfoService, passwordComparator, generateToken, tokenConfig, payloadConfig, loadPrivileges, nil, nil, 0, nil)
 }
-func NewAuthenticatorWithTwoFactors(status Status, userInfoService UserInfoService, passwordComparator ValueComparator, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, loadPrivileges func(context.Context, string) ([]Privilege, error), sendCode func(context.Context, string, string, time.Time, interface{}) error, codeService CodeService, codeExpires int, options ...func() string) *DefaultAuthenticator {
+func NewAuthenticatorWithTwoFactors(status Status, userInfoService UserInfoService, passwordComparator ValueComparator, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, loadPrivileges func(context.Context, string) ([]Privilege, error), sendCode func(context.Context, string, string, time.Time, interface{}) error, codeService CodeService, codeExpires int64, options ...func() string) *DefaultAuthenticator {
 	if passwordComparator == nil {
 		panic(errors.New("password comparator cannot be nil"))
 	}

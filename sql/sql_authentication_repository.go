@@ -1,4 +1,4 @@
-package auth
+package sql
 
 import (
 	"context"
@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/common-go/auth"
 )
 
 type SqlAuthenticationRepository struct {
@@ -17,7 +19,7 @@ type SqlAuthenticationRepository struct {
 	passwordTableName       string
 	CheckTwoFactors         func(ctx context.Context, id string) (bool, error)
 	activatedStatus         interface{}
-	Status                  UserStatusConfig
+	Status                  auth.UserStatusConfig
 	IdName                  string
 	UserName                string
 	UserId                  string
@@ -41,11 +43,11 @@ type SqlAuthenticationRepository struct {
 	TwoFactorsName          string
 }
 
-func NewSqlAuthenticationRepositoryByConfig(db *sql.DB, buildParam func(i int) string, userTableName, passwordTableName string, activatedStatus string, status UserStatusConfig, c SchemaConfig, options ...func(context.Context, string) (bool, error)) *SqlAuthenticationRepository {
-	return NewSqlAuthenticationRepository(db, buildParam, userTableName, passwordTableName, activatedStatus, status, c.Id, c.UserName, c.UserId, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.PasswordChangedTime, c.Password, c.Contact, c.Email, c.Phone, c.DisplayName, c.MaxPasswordAge, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors, options...)
+func NewAuthenticationRepositoryByConfig(db *sql.DB, buildParam func(i int) string, userTableName, passwordTableName string, activatedStatus string, status auth.UserStatusConfig, c auth.SchemaConfig, options ...func(context.Context, string) (bool, error)) *SqlAuthenticationRepository {
+	return NewAuthenticationRepository(db, buildParam, userTableName, passwordTableName, activatedStatus, status, c.Id, c.Username, c.UserId, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.PasswordChangedTime, c.Password, c.Contact, c.Email, c.Phone, c.DisplayName, c.MaxPasswordAge, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors, options...)
 }
 
-func NewSqlAuthenticationRepository(db *sql.DB, buildParam func(i int) string, userTableName, passwordTableName string, activatedStatus string, status UserStatusConfig, idName, userName, userID, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, contactName, emailName, phoneName, displayNameName, maxPasswordAgeName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string, options ...func(context.Context, string) (bool, error)) *SqlAuthenticationRepository {
+func NewAuthenticationRepository(db *sql.DB, buildParam func(i int) string, userTableName, passwordTableName string, activatedStatus string, status auth.UserStatusConfig, idName, userName, userID, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, contactName, emailName, phoneName, displayNameName, maxPasswordAgeName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string, options ...func(context.Context, string) (bool, error)) *SqlAuthenticationRepository {
 	var checkTwoFactors func(context.Context, string) (bool, error)
 	if len(options) >= 1 {
 		checkTwoFactors = options[0]
@@ -55,18 +57,18 @@ func NewSqlAuthenticationRepository(db *sql.DB, buildParam func(i int) string, u
 		b = getBuild(db)
 	}
 	return &SqlAuthenticationRepository{
-		db:                db,
-		BuildParam:        b,
-		userTableName:     strings.ToLower(userTableName),
-		passwordTableName: strings.ToLower(passwordTableName),
-		CheckTwoFactors:   checkTwoFactors,
-		activatedStatus:   strings.ToLower(activatedStatus),
-		Status:            status,
-		IdName:            strings.ToLower(idName),
-		UserName:          strings.ToLower(userName),
-		UserId:            strings.ToLower(userID),
-		SuccessTimeName:   strings.ToLower(successTimeName),
-		FailTimeName:      strings.ToLower(failTimeName),
+		db:                      db,
+		BuildParam:              b,
+		userTableName:           strings.ToLower(userTableName),
+		passwordTableName:       strings.ToLower(passwordTableName),
+		CheckTwoFactors:         checkTwoFactors,
+		activatedStatus:         strings.ToLower(activatedStatus),
+		Status:                  status,
+		IdName:                  strings.ToLower(idName),
+		UserName:                strings.ToLower(userName),
+		UserId:                  strings.ToLower(userID),
+		SuccessTimeName:         strings.ToLower(successTimeName),
+		FailTimeName:            strings.ToLower(failTimeName),
 		FailCountName:           strings.ToLower(failCountName),
 		LockedUntilTimeName:     strings.ToLower(lockedUntilTimeName),
 		StatusName:              strings.ToLower(statusName),
@@ -86,8 +88,8 @@ func NewSqlAuthenticationRepository(db *sql.DB, buildParam func(i int) string, u
 	}
 }
 
-func (r *SqlAuthenticationRepository) GetUserInfo(ctx context.Context, userid string) (*UserInfo, error) {
-	userInfo := UserInfo{}
+func (r *SqlAuthenticationRepository) GetUserInfo(ctx context.Context, userid string) (*auth.UserInfo, error) {
+	userInfo := auth.UserInfo{}
 	strSQL := ""
 	if len(r.StatusName) > 0 {
 		strSQL += r.StatusName + ", "
@@ -180,7 +182,7 @@ func (r *SqlAuthenticationRepository) GetUserInfo(ctx context.Context, userid st
 			` INNER JOIN ` + r.passwordTableName +
 			` ON ` + r.passwordTableName + `.` + r.UserId + " = " + r.userTableName + "." + r.UserId +
 			` WHERE ` + r.userTableName + `.` + `userid = ` + r.BuildParam(1)
-			rows, err := r.db.QueryContext(ctx, query, userid)
+		rows, err := r.db.QueryContext(ctx, query, userid)
 		if err != nil {
 			return nil, err
 		}

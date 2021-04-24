@@ -2,11 +2,11 @@ package auth
 
 import "time"
 
-func addSeconds(date time.Time, seconds int) time.Time {
+func addSeconds(date time.Time, seconds int64) time.Time {
 	return date.Add(time.Second * time.Duration(seconds))
 }
 
-func addDays(date time.Time, days int) time.Time {
+func addDays(date time.Time, days int64) time.Time {
 	return date.Add(time.Hour * time.Duration(days) * 24)
 }
 
