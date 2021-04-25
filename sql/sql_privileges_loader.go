@@ -1,4 +1,4 @@
-package auth
+package sql
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"errors"
 	"reflect"
 	"strings"
+
+	"github.com/common-go/auth"
 )
 
 type SqlPrivilegesLoader struct {
@@ -50,9 +52,9 @@ func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int, option
 	}
 	return &SqlPrivilegesLoader{DB: db, Query: query, ParameterCount: parameterCount, Or: or, NoSequence: noSequence, HandleDriver: handleDriver, Driver: driver}
 }
-func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, error) {
-	models := make([]Module, 0)
-	p0 := make([]Privilege, 0)
+func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]auth.Privilege, error) {
+	models := make([]auth.Module, 0)
+	p0 := make([]auth.Privilege, 0)
 	params := make([]interface{}, 0)
 	params = append(params, id)
 	if l.ParameterCount > 1 {
@@ -67,38 +69,38 @@ func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]Privilege, 
 	}
 	defer rows.Close()
 	columns, er2 := rows.Columns()
-	hasPermission := HasPermissions(columns)
+	hasPermission := hasPermissions(columns)
 	if er2 != nil {
 		return p0, er2
 	}
 	// get list indexes column
 	modelTypes := reflect.TypeOf(models).Elem()
-	modelType := reflect.TypeOf(Module{})
-	indexes, er3 := GetColumnIndexes(modelType, columns, driver)
+	modelType := reflect.TypeOf(auth.Module{})
+	indexes, er3 := getColumnIndexes(modelType, columns, driver)
 	if er3 != nil {
 		return p0, er3
 	}
-	tb, er4 := ScanType(rows, modelTypes, indexes)
+	tb, er4 := scanType(rows, modelTypes, indexes)
 	if er4 != nil {
 		return p0, er4
 	}
 	for _, v := range tb {
-		if c, ok := v.(*Module); ok {
+		if c, ok := v.(*auth.Module); ok {
 			models = append(models, *c)
 		}
 	}
 	if hasPermission && l.Or {
-		models = OrPermissions(models)
+		models = auth.OrPermissions(models)
 	}
-	var p []Privilege
+	var p []auth.Privilege
 	if l.NoSequence == true {
-		p = ToPrivilegesWithNoSequence(models)
+		p = auth.ToPrivilegesWithNoSequence(models)
 	} else {
-		p = ToPrivileges(models)
+		p = auth.ToPrivileges(models)
 	}
 	return p, nil
 }
-func HasPermissions(cols []string) bool {
+func hasPermissions(cols []string) bool {
 	for _, col := range cols {
 		lcol := strings.ToLower(col)
 		if lcol == "permissions" {
@@ -107,16 +109,16 @@ func HasPermissions(cols []string) bool {
 	}
 	return false
 }
-func ScanType(rows *sql.Rows, modelTypes reflect.Type, indexes []int) (t []interface{}, err error) {
+func scanType(rows *sql.Rows, modelTypes reflect.Type, indexes []int) (t []interface{}, err error) {
 	for rows.Next() {
 		initArray := reflect.New(modelTypes).Interface()
-		if err = rows.Scan(StructScan(initArray, indexes)...); err == nil {
+		if err = rows.Scan(structScan(initArray, indexes)...); err == nil {
 			t = append(t, initArray)
 		}
 	}
 	return
 }
-func StructScan(s interface{}, indexColumns []int) (r []interface{}) {
+func structScan(s interface{}, indexColumns []int) (r []interface{}) {
 	if s != nil {
 		maps := reflect.Indirect(reflect.ValueOf(s))
 		for _, index := range indexColumns {
@@ -126,14 +128,14 @@ func StructScan(s interface{}, indexColumns []int) (r []interface{}) {
 	return
 }
 
-func GetColumnIndex(modelType reflect.Type, columnsName string, driver string) (index int, err error) {
+func getColumnIndex(modelType reflect.Type, columnsName string, driver string) (index int, err error) {
 	if modelType.Kind() != reflect.Struct {
 		return -1, errors.New("bad type")
 	}
 	for i := 0; i < modelType.NumField(); i++ {
 		field := modelType.Field(i)
 		ormTag := field.Tag.Get("gorm")
-		column, ok := FindTag(ormTag, "column")
+		column, ok := findTag(ormTag, "column")
 		if driver == DriverOracle {
 			column = strings.ToUpper(column)
 		}
@@ -146,12 +148,12 @@ func GetColumnIndex(modelType reflect.Type, columnsName string, driver string) (
 	return -1, errors.New("col " + columnsName + "not found")
 }
 
-func GetColumnIndexes(modelType reflect.Type, columnsNames []string, driver string) (indexes []int, err error) {
+func getColumnIndexes(modelType reflect.Type, columnsNames []string, driver string) (indexes []int, err error) {
 	if modelType.Kind() != reflect.Struct {
 		return nil, errors.New("bad type")
 	}
 	for i := 0; i < len(columnsNames); i++ {
-		index, err := GetColumnIndex(modelType, columnsNames[i], driver)
+		index, err := getColumnIndex(modelType, columnsNames[i], driver)
 		if err != nil{
 			return nil, err
 		}
@@ -172,7 +174,7 @@ func GetColumnIndexes(modelType reflect.Type, columnsNames []string, driver stri
 	}*/
 	return
 }
-func FindTag(tag string, key string) (string, bool) {
+func findTag(tag string, key string) (string, bool) {
 	if has := strings.Contains(tag, key); has {
 		str1 := strings.Split(tag, ";")
 		num := len(str1)

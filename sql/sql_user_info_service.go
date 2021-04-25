@@ -1,10 +1,12 @@
-package auth
+package sql
 
 import (
 	"context"
 	"database/sql"
 	"reflect"
 	"time"
+
+	a "github.com/common-go/auth"
 )
 
 type SqlConfig struct {
@@ -44,8 +46,8 @@ func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus st
 func NewSqlUserInfoByConfig(db *sql.DB, c SqlConfig, options...bool) *SqlUserInfoService {
 	return NewSqlUserInfoService(db, c.Query, c.SqlPass, c.SqlFail, c.DisableStatus, c.SuspendedStatus, c.NoTime, options...)
 }
-func (l SqlUserInfoService) GetUserInfo(ctx context.Context, auth AuthInfo) (*UserInfo, error) {
-	models := make([]UserInfo, 0)
+func (l SqlUserInfoService) GetUserInfo(ctx context.Context, auth a.AuthInfo) (*a.UserInfo, error) {
+	models := make([]a.UserInfo, 0)
 	rows, er1 := l.DB.QueryContext(ctx, l.Query, auth.Username)
 	if er1 != nil {
 		switch er1 {
@@ -57,22 +59,22 @@ func (l SqlUserInfoService) GetUserInfo(ctx context.Context, auth AuthInfo) (*Us
 	}
 	defer rows.Close()
 	modelTypes := reflect.TypeOf(models).Elem()
-	modelType := reflect.TypeOf(UserInfo{})
+	modelType := reflect.TypeOf(a.UserInfo{})
 	columns, er2 := rows.Columns()
 	if er2 != nil {
 		return nil, er2
 	}
 	// get list indexes column
-	indexes, er3 := GetColumnIndexes(modelType, columns, l.Driver)
+	indexes, er3 := getColumnIndexes(modelType, columns, l.Driver)
 	if er3 != nil {
 		return nil, er3
 	}
-	tb, er4 := ScanType(rows, modelTypes, indexes)
+	tb, er4 := scanType(rows, modelTypes, indexes)
 	if er4 != nil {
 		return nil, er4
 	}
 	if len(tb) > 0 {
-		if c, ok := tb[0].(*UserInfo); ok {
+		if c, ok := tb[0].(*a.UserInfo); ok {
 			if len(c.Status) > 0 {
 				if c.Status == l.SuspendedStatus {
 					c.Suspended = true
@@ -86,7 +88,7 @@ func (l SqlUserInfoService) GetUserInfo(ctx context.Context, auth AuthInfo) (*Us
 	}
 	return nil, nil
 }
-func (l SqlUserInfoService) Pass(ctx context.Context, user UserInfo) error {
+func (l SqlUserInfoService) Pass(ctx context.Context, user a.UserInfo) error {
 	if len(l.SqlPass) == 0 {
 		return nil
 	}
@@ -98,7 +100,7 @@ func (l SqlUserInfoService) Pass(ctx context.Context, user UserInfo) error {
 		return err
 	}
 }
-func (l SqlUserInfoService) Fail(ctx context.Context, user UserInfo) error {
+func (l SqlUserInfoService) Fail(ctx context.Context, user a.UserInfo) error {
 	if len(l.SqlFail) == 0 {
 		return nil
 	}

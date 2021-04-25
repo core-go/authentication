@@ -1,4 +1,4 @@
-package auth
+package sql
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/common-go/auth"
 )
 
 const (
@@ -41,9 +43,9 @@ func NewPrivilegesReader(db *sql.DB, query string, options...bool) *SqlPrivilege
 	}
 	return &SqlPrivilegesReader{DB: db, Query: query, NoSequence: noSequence, Driver: driver}
 }
-func (l SqlPrivilegesReader) Privileges(ctx context.Context) ([]Privilege, error) {
-	models := make([]Module, 0)
-	p0 := make([]Privilege, 0)
+func (l SqlPrivilegesReader) Privileges(ctx context.Context) ([]auth.Privilege, error) {
+	models := make([]auth.Module, 0)
+	p0 := make([]auth.Privilege, 0)
 	rows, er1 := l.DB.QueryContext(ctx, l.Query)
 	if er1 != nil {
 		return p0, er1
@@ -55,25 +57,25 @@ func (l SqlPrivilegesReader) Privileges(ctx context.Context) ([]Privilege, error
 	}
 	// get list indexes column
 	modelTypes := reflect.TypeOf(models).Elem()
-	modelType := reflect.TypeOf(Module{})
-	indexes, er3 := GetColumnIndexes(modelType, columns, l.Driver)
+	modelType := reflect.TypeOf(auth.Module{})
+	indexes, er3 := getColumnIndexes(modelType, columns, l.Driver)
 	if er3 != nil {
 		return p0, er3
 	}
-	tb, er4 := ScanType(rows, modelTypes, indexes)
+	tb, er4 := scanType(rows, modelTypes, indexes)
 	if er4 != nil {
 		return p0, er4
 	}
 	for _, v := range tb {
-		if c, ok := v.(*Module); ok {
+		if c, ok := v.(*auth.Module); ok {
 			models = append(models, *c)
 		}
 	}
-	var p []Privilege
+	var p []auth.Privilege
 	if l.NoSequence == true {
-		p = ToPrivilegesWithNoSequence(models)
+		p = auth.ToPrivilegesWithNoSequence(models)
 	} else {
-		p = ToPrivileges(models)
+		p = auth.ToPrivileges(models)
 	}
 	return p, nil
 }
