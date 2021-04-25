@@ -28,9 +28,9 @@ type AuthenticationRepository struct {
 	StatusName              string
 	PasswordChangedTimeName string
 	PasswordName            string
+	ContactName             string
 	EmailName               string
 	PhoneName               string
-	ContactName             string
 	DisplayNameName         string
 	MaxPasswordAgeName      string
 	RolesName               string
