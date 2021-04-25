@@ -12,7 +12,7 @@ import (
 	"github.com/common-go/auth"
 )
 
-type SqlAuthenticationRepository struct {
+type AuthenticationRepository struct {
 	db                      *sql.DB
 	BuildParam              func(i int) string
 	userTableName           string
@@ -43,11 +43,11 @@ type SqlAuthenticationRepository struct {
 	TwoFactorsName          string
 }
 
-func NewAuthenticationRepositoryByConfig(db *sql.DB, buildParam func(i int) string, userTableName, passwordTableName string, activatedStatus string, status auth.UserStatusConfig, c auth.SchemaConfig, options ...func(context.Context, string) (bool, error)) *SqlAuthenticationRepository {
+func NewAuthenticationRepositoryByConfig(db *sql.DB, buildParam func(i int) string, userTableName, passwordTableName string, activatedStatus string, status auth.UserStatusConfig, c auth.SchemaConfig, options ...func(context.Context, string) (bool, error)) *AuthenticationRepository {
 	return NewAuthenticationRepository(db, buildParam, userTableName, passwordTableName, activatedStatus, status, c.Id, c.Username, c.UserId, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.PasswordChangedTime, c.Password, c.Contact, c.Email, c.Phone, c.DisplayName, c.MaxPasswordAge, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors, options...)
 }
 
-func NewAuthenticationRepository(db *sql.DB, buildParam func(i int) string, userTableName, passwordTableName string, activatedStatus string, status auth.UserStatusConfig, idName, userName, userID, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, contactName, emailName, phoneName, displayNameName, maxPasswordAgeName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string, options ...func(context.Context, string) (bool, error)) *SqlAuthenticationRepository {
+func NewAuthenticationRepository(db *sql.DB, buildParam func(i int) string, userTableName, passwordTableName string, activatedStatus string, status auth.UserStatusConfig, idName, userName, userID, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, contactName, emailName, phoneName, displayNameName, maxPasswordAgeName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string, options ...func(context.Context, string) (bool, error)) *AuthenticationRepository {
 	var checkTwoFactors func(context.Context, string) (bool, error)
 	if len(options) >= 1 {
 		checkTwoFactors = options[0]
@@ -56,7 +56,7 @@ func NewAuthenticationRepository(db *sql.DB, buildParam func(i int) string, user
 	if b == nil {
 		b = getBuild(db)
 	}
-	return &SqlAuthenticationRepository{
+	return &AuthenticationRepository{
 		db:                      db,
 		BuildParam:              b,
 		userTableName:           strings.ToLower(userTableName),
@@ -88,7 +88,7 @@ func NewAuthenticationRepository(db *sql.DB, buildParam func(i int) string, user
 	}
 }
 
-func (r *SqlAuthenticationRepository) GetUserInfo(ctx context.Context, userid string) (*auth.UserInfo, error) {
+func (r *AuthenticationRepository) GetUserInfo(ctx context.Context, userid string) (*auth.UserInfo, error) {
 	userInfo := auth.UserInfo{}
 	strSQL := ""
 	if len(r.StatusName) > 0 {
@@ -331,14 +331,14 @@ func SqlScanStruct(rows *sql.Rows, outputStruct interface{}) error {
 	return nil
 }
 
-func (r *SqlAuthenticationRepository) PassAuthentication(ctx context.Context, userId string) (int64, error) {
+func (r *AuthenticationRepository) PassAuthentication(ctx context.Context, userId string) (int64, error) {
 	return r.passAuthenticationAndActivate(ctx, userId, false)
 }
-func (r *SqlAuthenticationRepository) PassAuthenticationAndActivate(ctx context.Context, userId string) (int64, error) {
+func (r *AuthenticationRepository) PassAuthenticationAndActivate(ctx context.Context, userId string) (int64, error) {
 	return r.passAuthenticationAndActivate(ctx, userId, true)
 }
 
-func (r *SqlAuthenticationRepository) passAuthenticationAndActivate(ctx context.Context, userId string, updateStatus bool) (int64, error) {
+func (r *AuthenticationRepository) passAuthenticationAndActivate(ctx context.Context, userId string, updateStatus bool) (int64, error) {
 	if len(r.SuccessTimeName) == 0 && len(r.FailCountName) == 0 && len(r.LockedUntilTimeName) == 0 {
 		if !updateStatus {
 			return 0, nil
@@ -380,7 +380,7 @@ func (r *SqlAuthenticationRepository) passAuthenticationAndActivate(ctx context.
 	return k1 + k2, err1
 }
 
-func (r *SqlAuthenticationRepository) WrongPassword(ctx context.Context, userId string, failCount int, lockedUntil *time.Time) error {
+func (r *AuthenticationRepository) WrongPassword(ctx context.Context, userId string, failCount int, lockedUntil *time.Time) error {
 	if len(r.FailTimeName) == 0 && len(r.FailCountName) == 0 && len(r.LockedUntilTimeName) == 0 {
 		return nil
 	}
