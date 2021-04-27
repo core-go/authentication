@@ -174,7 +174,7 @@ func (r *AuthenticationRepository) GetUserInfo(ctx context.Context, userid strin
 		}
 		defer rows.Close()
 		for rows.Next() {
-			SqlScanStruct(rows, &userInfo)
+			sqlScanStruct(rows, &userInfo)
 		}
 	} else {
 		query := `SELECT ` + strSQL +
@@ -188,13 +188,13 @@ func (r *AuthenticationRepository) GetUserInfo(ctx context.Context, userid strin
 		}
 		defer rows.Close()
 		for rows.Next() {
-			SqlScanStruct(rows, &userInfo)
+			sqlScanStruct(rows, &userInfo)
 		}
 	}
 	return &userInfo, nil
 }
 
-func SqlScanStruct(rows *sql.Rows, outputStruct interface{}) error {
+func sqlScanStruct(rows *sql.Rows, outputStruct interface{}) error {
 	v := reflect.ValueOf(outputStruct).Elem()
 	if v.Kind() != reflect.Struct {
 		return nil // bail if it's not a struct

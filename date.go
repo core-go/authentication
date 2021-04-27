@@ -6,7 +6,7 @@ func addSeconds(date time.Time, seconds int64) time.Time {
 	return date.Add(time.Second * time.Duration(seconds))
 }
 
-func addDays(date time.Time, days int64) time.Time {
+func addDays(date time.Time, days int32) time.Time {
 	return date.Add(time.Hour * time.Duration(days) * 24)
 }
 

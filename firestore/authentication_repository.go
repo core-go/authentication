@@ -186,7 +186,7 @@ func (r *AuthenticationRepository) GetUserInfo(ctx context.Context, username str
 	if len(r.MaxPasswordAgeName) > 0 {
 		maxPasswordAge, ok := rawStatus[r.MaxPasswordAgeName]
 		if ok {
-			if e, k := maxPasswordAge.(int64); k {
+			if e, k := maxPasswordAge.(int32); k {
 				userInfo.MaxPasswordAge = e
 			}
 		}

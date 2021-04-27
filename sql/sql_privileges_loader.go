@@ -136,8 +136,10 @@ func getColumnIndex(modelType reflect.Type, columnsName string, driver string) (
 		field := modelType.Field(i)
 		ormTag := field.Tag.Get("gorm")
 		column, ok := findTag(ormTag, "column")
-		if driver == DriverOracle {
+		if driver == driverOracle {
 			column = strings.ToUpper(column)
+		} else {
+			column = strings.ToLower(column)
 		}
 		if ok {
 			if columnsName == column {

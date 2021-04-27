@@ -11,12 +11,12 @@ import (
 )
 
 const (
-	DriverPostgres         = "postgres"
-	DriverMysql            = "mysql"
-	DriverMssql            = "mssql"
-	DriverOracle           = "oracle"
-	DriverSqlite3          = "sqlite3"
-	DriverNotSupport       = "no support"
+	driverPostgres   = "postgres"
+	driverMysql      = "mysql"
+	driverMssql      = "mssql"
+	driverOracle     = "oracle"
+	driverSqlite3    = "sqlite3"
+	driverNotSupport = "no support"
 )
 
 type SqlPrivilegesReader struct {
@@ -25,7 +25,8 @@ type SqlPrivilegesReader struct {
 	NoSequence bool
 	Driver     string
 }
-func NewPrivilegesReader(db *sql.DB, query string, options...bool) *SqlPrivilegesReader {
+
+func NewPrivilegesReader(db *sql.DB, query string, options ...bool) *SqlPrivilegesReader {
 	var handleDriver, noSequence bool
 	if len(options) >= 1 {
 		handleDriver = options[0]
@@ -81,33 +82,33 @@ func (l SqlPrivilegesReader) Privileges(ctx context.Context) ([]auth.Privilege, 
 }
 func getDriver(db *sql.DB) string {
 	if db == nil {
-		return DriverNotSupport
+		return driverNotSupport
 	}
 	driver := reflect.TypeOf(db.Driver()).String()
 	switch driver {
 	case "*pq.Driver":
-		return DriverPostgres
+		return driverPostgres
 	case "*godror.drv":
-		return DriverOracle
+		return driverOracle
 	case "*mysql.MySQLDriver":
-		return DriverMysql
+		return driverMysql
 	case "*mssql.Driver":
-		return DriverMssql
+		return driverMssql
 	case "*sqlite3.SQLiteDriver":
-		return DriverSqlite3
+		return driverSqlite3
 	default:
-		return DriverNotSupport
+		return driverNotSupport
 	}
 }
 
 func replaceQueryArgs(driver string, query string) string {
-	if driver == DriverOracle || driver == DriverPostgres || driver == DriverMssql {
+	if driver == driverOracle || driver == driverPostgres || driver == driverMssql {
 		var x string
-		if driver == DriverOracle {
+		if driver == driverOracle {
 			x = ":val"
-		} else if driver == DriverPostgres {
+		} else if driver == driverPostgres {
 			x = "$"
-		} else if driver == DriverMssql {
+		} else if driver == driverMssql {
 			x = "@p"
 		}
 		i := 1
