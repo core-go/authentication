@@ -74,7 +74,7 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 			return
 		}
 		modelType := reflect.TypeOf(user)
-		mapIndexModels, err := GetIndexesByTagJson(modelType)
+		mapIndexModels, err := getIndexesByTagJson(modelType)
 		if err != nil {
 			if h.Error != nil {
 				h.Error(r.Context(), "cannot decode authentication info: "+err.Error())
@@ -89,7 +89,7 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 			if index, ok := mapIndexModels[k]; ok {
 				idType := userV.Field(index).Type().String()
 				if strings.Index(idType, "int") >= 0 {
-					valueField, err := ParseIntWithType(v[0], idType)
+					valueField, err := parseIntWithType(v[0], idType)
 					if err != nil {
 						http.Error(w, "invalid key: "+k, http.StatusBadRequest)
 						return
@@ -119,7 +119,7 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 		if len(user.Ip) > 0 && h.IpFromRequest {
 			ip = user.Ip
 		} else {
-			ip = GetRemoteIp(r)
+			ip = getRemoteIp(r)
 		}
 		ctx = context.WithValue(ctx, h.Ip, ip)
 		r = r.WithContext(ctx)
@@ -143,7 +143,7 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 			h.Error(r.Context(), er3.Error())
 		}
 		if result.Status == h.Timeout {
-			respond(w, r, http.StatusGatewayTimeout, "Timeout", h.Log, h.Resource, h.Action, false, er3.Error())
+			respond(w, r, http.StatusGatewayTimeout, "timeout", h.Log, h.Resource, h.Action, false, er3.Error())
 		} else {
 			result.Status = h.SystemError
 			respond(w, r, http.StatusInternalServerError, result, h.Log, h.Resource, h.Action, false, er3.Error())
@@ -159,14 +159,14 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 		respond(w, r, http.StatusOK, result, h.Log, h.Resource, h.Action, true, "")
 	}
 }
-func GetRemoteIp(r *http.Request) string {
+func getRemoteIp(r *http.Request) string {
 	remoteIP, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		remoteIP = r.RemoteAddr
 	}
 	return remoteIP
 }
-func GetIndexesByTagJson(modelType reflect.Type) (map[string]int, error) {
+func getIndexesByTagJson(modelType reflect.Type) (map[string]int, error) {
 	mapp := make(map[string]int, 0)
 	if modelType.Kind() != reflect.Struct {
 		return mapp, errors.New("bad type")
@@ -181,7 +181,7 @@ func GetIndexesByTagJson(modelType reflect.Type) (map[string]int, error) {
 	}
 	return mapp, nil
 }
-func ParseIntWithType(value string, idType string) (v interface{}, err error) {
+func parseIntWithType(value string, idType string) (v interface{}, err error) {
 	switch idType {
 	case "int64", "*int64":
 		return strconv.ParseInt(value, 10, 64)
