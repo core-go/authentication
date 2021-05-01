@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/common-go/auth"
+	"github.com/core-go/auth"
 	"gopkg.in/ldap.v3"
 	"net"
 	"strconv"

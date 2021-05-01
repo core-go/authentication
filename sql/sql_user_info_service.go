@@ -3,10 +3,9 @@ package sql
 import (
 	"context"
 	"database/sql"
+	a "github.com/core-go/auth"
 	"reflect"
 	"time"
-
-	a "github.com/common-go/auth"
 )
 
 type SqlConfig struct {

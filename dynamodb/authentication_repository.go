@@ -3,17 +3,15 @@ package dynamodb
 import (
 	"context"
 	"fmt"
-	"reflect"
-	"strconv"
-	"strings"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
-
-	"github.com/common-go/auth"
+	"github.com/core-go/auth"
+	"reflect"
+	"strconv"
+	"strings"
+	"time"
 )
 
 type AuthenticationRepository struct {

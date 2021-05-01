@@ -4,10 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/core-go/auth"
 	"reflect"
 	"strings"
-
-	"github.com/common-go/auth"
 )
 
 type SqlPrivilegesLoader struct {

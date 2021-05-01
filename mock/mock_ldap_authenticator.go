@@ -2,8 +2,8 @@ package mock
 
 import (
 	"context"
-	"github.com/common-go/auth"
-	l "github.com/common-go/auth/ldap"
+	"github.com/core-go/auth"
+	l "github.com/core-go/auth/ldap"
 	"strings"
 )
 

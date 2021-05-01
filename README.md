@@ -17,25 +17,16 @@
 - TokenGenerator
 
 ## Installation
-
-Please make sure to initialize a Go module before installing common-go/auth:
+Please make sure to initialize a Go module before installing core-go/auth:
 
 ```shell
-go get -u github.com/common-go/auth
+go get -u github.com/core-go/auth
 ```
 
 Import:
-
 ```go
-import "github.com/common-go/auth"
+import "github.com/core-go/auth"
 ```
-
-## Implementations of AuthenticationRepository
-- [sql](https://github.com/common-go/auth-sql): requires [gorm](https://github.com/go-gorm/gorm)
-- [mongo](https://github.com/common-go/auth-mongo)
-- [dynamodb](https://github.com/common-go/auth-dynamodb)
-- [firestore](https://github.com/common-go/auth-firestore)
-- [elasticsearch](https://github.com/common-go/auth-elasticsearch)
 
 ## Details:
 #### authenticator.go

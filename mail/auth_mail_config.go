@@ -1,8 +1,8 @@
 package mail
 
 import (
-	"github.com/common-go/auth"
-	"github.com/common-go/mail"
+	"github.com/core-go/auth"
+	"github.com/core-go/mail"
 )
 
 type AuthMailConfig struct {

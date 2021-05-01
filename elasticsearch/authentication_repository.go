@@ -4,16 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/core-go/auth"
+	"github.com/elastic/go-elasticsearch"
+	"github.com/elastic/go-elasticsearch/esapi"
+	"github.com/elastic/go-elasticsearch/esutil"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/elastic/go-elasticsearch"
-	"github.com/elastic/go-elasticsearch/esapi"
-	"github.com/elastic/go-elasticsearch/esutil"
-
-	"github.com/common-go/auth"
 )
 
 type AuthenticationRepository struct {

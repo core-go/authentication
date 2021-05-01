@@ -4,12 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/core-go/auth"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/common-go/auth"
 )
 
 type AuthenticationRepository struct {
