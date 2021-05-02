@@ -1,10 +1,9 @@
-package handler
+package auth
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
-	a "github.com/core-go/auth"
 	"net"
 	"net/http"
 	"reflect"
@@ -13,7 +12,7 @@ import (
 )
 
 type AuthenticationHandler struct {
-	Auth          func(ctx context.Context, user a.AuthInfo) (a.AuthResult, error)
+	Auth          func(ctx context.Context, user AuthInfo) (AuthResult, error)
 	SystemError   int
 	Timeout       int
 	Error         func(context.Context, string)
@@ -28,7 +27,7 @@ type AuthenticationHandler struct {
 	EncryptionKey string
 }
 
-func NewAuthenticationHandlerWithDecrypter(authenticate func(context.Context, a.AuthInfo) (a.AuthResult, error), systemError int, timeout int, logError func(context.Context, string), addTokenIntoWhitelist func(id string, token string) error, ipFromRequest bool, decrypt func(cipherText string, secretKey string) (string, error), encryptionKey string, writeLog func(context.Context, string, string, bool, string) error, options ...string) *AuthenticationHandler {
+func NewAuthenticationHandlerWithDecrypter(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, timeout int, logError func(context.Context, string), addTokenIntoWhitelist func(id string, token string) error, ipFromRequest bool, decrypt func(cipherText string, secretKey string) (string, error), encryptionKey string, writeLog func(context.Context, string, string, bool, string) error, options ...string) *AuthenticationHandler {
 	var ip, userId, resource, action string
 	if len(options) >= 1 {
 		ip = options[0]
@@ -52,14 +51,14 @@ func NewAuthenticationHandlerWithDecrypter(authenticate func(context.Context, a.
 	}
 	return &AuthenticationHandler{Auth: authenticate, SystemError: systemError, Timeout: timeout, Resource: resource, Action: action, Error: logError, Ip: ip, UserId: userId, Whitelist: addTokenIntoWhitelist, Log: writeLog, Decrypt: decrypt, EncryptionKey: encryptionKey, IpFromRequest: ipFromRequest}
 }
-func NewAuthenticationHandler(authenticate func(context.Context, a.AuthInfo) (a.AuthResult, error), systemError int, timeout int, logError func(context.Context, string), options ...func(context.Context, string, string, bool, string) error) *AuthenticationHandler {
+func NewAuthenticationHandler(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, timeout int, logError func(context.Context, string), options ...func(context.Context, string, string, bool, string) error) *AuthenticationHandler {
 	var writeLog func(context.Context, string, string, bool, string) error
 	if len(options) >= 1 {
 		writeLog = options[0]
 	}
 	return NewAuthenticationHandlerWithDecrypter(authenticate, systemError, timeout, logError, nil, true, nil, "", writeLog, "ip", "userId", "authentication", "authenticate")
 }
-func NewAuthenticationHandlerWithWhitelist(authenticate func(context.Context, a.AuthInfo) (a.AuthResult, error), systemError int, timeout int, logError func(context.Context, string), addTokenIntoWhitelist func(id string, token string) error, ipFromRequest bool, options ...func(context.Context, string, string, bool, string) error) *AuthenticationHandler {
+func NewAuthenticationHandlerWithWhitelist(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, timeout int, logError func(context.Context, string), addTokenIntoWhitelist func(id string, token string) error, ipFromRequest bool, options ...func(context.Context, string, string, bool, string) error) *AuthenticationHandler {
 	var writeLog func(context.Context, string, string, bool, string) error
 	if len(options) >= 1 {
 		writeLog = options[0]
@@ -68,7 +67,7 @@ func NewAuthenticationHandlerWithWhitelist(authenticate func(context.Context, a.
 }
 
 func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Request) {
-	var user a.AuthInfo
+	var user AuthInfo
 	if strings.Contains(r.Header.Get("Content-Type"), "multipart/form-data") {
 		if err := r.ParseMultipartForm(1073741824); err != nil {
 			http.Error(w, "cannot parse form: "+err.Error(), http.StatusBadRequest)

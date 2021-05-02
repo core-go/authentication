@@ -1,13 +1,6 @@
 package auth
 
-import (
-	"context"
-	"sort"
-)
-
-type PrivilegesLoader interface {
-	Load(ctx context.Context, id string) ([]Privilege, error)
-}
+import "sort"
 
 type Module struct {
 	Id          string  `mapstructure:"id" json:"id,omitempty" gorm:"column:id" bson:"_id,omitempty" dynamodbav:"id,omitempty" firestore:"id,omitempty" sql:"id"`

@@ -10,13 +10,13 @@ type DefaultTokenWhitelistChecker struct {
 	Secret       string
 	TokenIp      string
 	TokenPrefix  string
-	TokenService TokenVerifier
+	VerifyToken  func(tokenString string, secret string) (map[string]interface{}, int64, int64, error)
 	CacheService CacheService
 	Level        int
 }
 
-func NewTokenWhitelistChecker(secret string, tokenIp string, keyPrefix string, tokenService TokenVerifier, cacheService CacheService, level int) *DefaultTokenWhitelistChecker {
-	return &DefaultTokenWhitelistChecker{secret, tokenIp, keyPrefix, tokenService, cacheService, level}
+func NewTokenWhitelistChecker(secret string, tokenIp string, keyPrefix string, verifyToken func(tokenString string, secret string) (map[string]interface{}, int64, int64, error), cacheService CacheService, level int) *DefaultTokenWhitelistChecker {
+	return &DefaultTokenWhitelistChecker{secret, tokenIp, keyPrefix, verifyToken, cacheService, level}
 }
 
 func (b *DefaultTokenWhitelistChecker) generateKey(token string) string {
@@ -28,7 +28,7 @@ func (b *DefaultTokenWhitelistChecker) generateKeyForId(id string) string {
 }
 
 func (b *DefaultTokenWhitelistChecker) Add(id string, token string) error {
-	_, _, eta, err := b.TokenService.VerifyToken(token, b.Secret)
+	_, _, eta, err := b.VerifyToken(token, b.Secret)
 	if err != nil {
 		return err
 	}
@@ -55,14 +55,14 @@ func (b *DefaultTokenWhitelistChecker) Check(id string, token string) bool {
 		if tokenStore, ok := value.(string); ok {
 			tokenStore, _ := strconv.Unquote(tokenStore)
 			if b.Level != 0 {
-				if tokenStore != token{
+				if tokenStore != token {
 					return false
 				}
 				return true
 			}
 
-			payloadStore, _, _, err1 := b.TokenService.VerifyToken(tokenStore, b.Secret)
-			payload, _, _, err2 := b.TokenService.VerifyToken(token, b.Secret)
+			payloadStore, _, _, err1 := b.VerifyToken(tokenStore, b.Secret)
+			payload, _, _, err2 := b.VerifyToken(token, b.Secret)
 			if err1 != nil || err2 != nil {
 				return false
 			}

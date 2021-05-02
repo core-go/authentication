@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-type SqlPrivilegesLoader struct {
+type PrivilegesLoader struct {
 	DB             *sql.DB
 	Query          string
 	ParameterCount int
@@ -19,7 +19,7 @@ type SqlPrivilegesLoader struct {
 	Or             bool
 }
 
-func NewPrivilegesLoader(db *sql.DB, query string, options ...int) *SqlPrivilegesLoader {
+func NewPrivilegesLoader(db *sql.DB, query string, options ...int) *PrivilegesLoader {
 	var parameterCount int
 	if len(options) >= 1 && options[0] > 0 {
 		parameterCount = options[0]
@@ -28,7 +28,7 @@ func NewPrivilegesLoader(db *sql.DB, query string, options ...int) *SqlPrivilege
 	}
 	return NewSqlPrivilegesLoader(db, query, parameterCount, false, true, true)
 }
-func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int, options ...bool) *SqlPrivilegesLoader {
+func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int, options ...bool) *PrivilegesLoader {
 	var or, handleDriver, noSequence bool
 	if len(options) >= 1 {
 		or = options[0]
@@ -49,9 +49,9 @@ func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int, option
 	if handleDriver {
 		query = replaceQueryArgs(driver, query)
 	}
-	return &SqlPrivilegesLoader{DB: db, Query: query, ParameterCount: parameterCount, Or: or, NoSequence: noSequence, HandleDriver: handleDriver, Driver: driver}
+	return &PrivilegesLoader{DB: db, Query: query, ParameterCount: parameterCount, Or: or, NoSequence: noSequence, HandleDriver: handleDriver, Driver: driver}
 }
-func (l SqlPrivilegesLoader) Load(ctx context.Context, id string) ([]auth.Privilege, error) {
+func (l PrivilegesLoader) Load(ctx context.Context, id string) ([]auth.Privilege, error) {
 	models := make([]auth.Module, 0)
 	p0 := make([]auth.Privilege, 0)
 	params := make([]interface{}, 0)

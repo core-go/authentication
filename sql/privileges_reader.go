@@ -18,14 +18,14 @@ const (
 	driverNotSupport = "no support"
 )
 
-type SqlPrivilegesReader struct {
+type PrivilegesReader struct {
 	DB         *sql.DB
 	Query      string
 	NoSequence bool
 	Driver     string
 }
 
-func NewPrivilegesReader(db *sql.DB, query string, options ...bool) *SqlPrivilegesReader {
+func NewPrivilegesReader(db *sql.DB, query string, options ...bool) *PrivilegesReader {
 	var handleDriver, noSequence bool
 	if len(options) >= 1 {
 		handleDriver = options[0]
@@ -41,9 +41,9 @@ func NewPrivilegesReader(db *sql.DB, query string, options ...bool) *SqlPrivileg
 	if handleDriver {
 		query = replaceQueryArgs(driver, query)
 	}
-	return &SqlPrivilegesReader{DB: db, Query: query, NoSequence: noSequence, Driver: driver}
+	return &PrivilegesReader{DB: db, Query: query, NoSequence: noSequence, Driver: driver}
 }
-func (l SqlPrivilegesReader) Privileges(ctx context.Context) ([]auth.Privilege, error) {
+func (l PrivilegesReader) Privileges(ctx context.Context) ([]auth.Privilege, error) {
 	models := make([]auth.Module, 0)
 	p0 := make([]auth.Privilege, 0)
 	rows, er1 := l.DB.QueryContext(ctx, l.Query)

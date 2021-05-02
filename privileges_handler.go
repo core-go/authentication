@@ -1,27 +1,26 @@
-package handler
+package auth
 
 import (
 	"context"
-	a "github.com/core-go/auth"
 	"net/http"
 )
 
 type PrivilegesHandler struct {
-	Load     func(ctx context.Context) ([]a.Privilege, error)
+	Load     func(ctx context.Context) ([]Privilege, error)
 	Error    func(context.Context, string)
 	Log      func(ctx context.Context, resource string, action string, success bool, desc string) error
 	Resource string
 	Action   string
 }
 
-func NewPrivilegesHandler(load func(context.Context) ([]a.Privilege, error), options ...func(context.Context, string)) *PrivilegesHandler {
+func NewPrivilegesHandler(load func(context.Context) ([]Privilege, error), options ...func(context.Context, string)) *PrivilegesHandler {
 	var logError func(context.Context, string)
 	if len(options) >= 1 {
 		logError = options[0]
 	}
 	return NewPrivilegesHandlerWithLog(load, logError, nil)
 }
-func NewPrivilegesHandlerWithLog(load func(context.Context) ([]a.Privilege, error), logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, options ...string) *PrivilegesHandler {
+func NewPrivilegesHandlerWithLog(load func(context.Context) ([]Privilege, error), logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, options ...string) *PrivilegesHandler {
 	var resource, action string
 	if len(options) >= 1 {
 		resource = options[0]

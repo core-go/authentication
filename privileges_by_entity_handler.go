@@ -1,14 +1,13 @@
-package handler
+package auth
 
 import (
 	"context"
-	a "github.com/core-go/auth"
 	"net/http"
 	"strings"
 )
 
 type PrivilegesByEntityHandler struct {
-	Load     func(ctx context.Context, id string) ([]a.Privilege, error)
+	Load     func(ctx context.Context, id string) ([]Privilege, error)
 	Error    func(context.Context, string)
 	Offset   int
 	Log      func(ctx context.Context, resource string, action string, success bool, desc string) error
@@ -16,14 +15,14 @@ type PrivilegesByEntityHandler struct {
 	Action   string
 }
 
-func NewPrivilegesByEntityHandler(load func(ctx context.Context, id string) ([]a.Privilege, error), options ...func(context.Context, string)) *PrivilegesByEntityHandler {
+func NewPrivilegesByEntityHandler(load func(ctx context.Context, id string) ([]Privilege, error), options ...func(context.Context, string)) *PrivilegesByEntityHandler {
 	var logError func(context.Context, string)
 	if len(options) >= 1 {
 		logError = options[0]
 	}
 	return NewPrivilegesByEntityHandlerWithLog(load, logError, 0, nil)
 }
-func NewPrivilegesByEntityHandlerWithLog(load func(ctx context.Context, id string) ([]a.Privilege, error), logError func(context.Context, string), offset int, writeLog func(context.Context, string, string, bool, string) error, options ...string) *PrivilegesByEntityHandler {
+func NewPrivilegesByEntityHandlerWithLog(load func(ctx context.Context, id string) ([]Privilege, error), logError func(context.Context, string), offset int, writeLog func(context.Context, string, string, bool, string) error, options ...string) *PrivilegesByEntityHandler {
 	var resource, action string
 	if len(options) >= 1 {
 		resource = options[0]

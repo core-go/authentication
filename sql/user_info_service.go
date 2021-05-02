@@ -16,7 +16,7 @@ type SqlConfig struct {
 	SuspendedStatus string `mapstructure:"suspended" json:"suspended,omitempty" gorm:"column:suspended" bson:"suspended,omitempty" dynamodbav:"suspended,omitempty" firestore:"suspended,omitempty"`
 	NoTime          bool   `mapstructure:"no_time" json:"noTime,omitempty" gorm:"column:notime" bson:"noTime,omitempty" dynamodbav:"noTime,omitempty" firestore:"noTime,omitempty"`
 }
-type SqlUserInfoService struct {
+type UserInfoService struct {
 	DB              *sql.DB
 	Query           string
 	SqlPass         string
@@ -27,7 +27,7 @@ type SqlUserInfoService struct {
 	Driver          string
 }
 
-func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus string, suspendedStatus string, noTime bool, options...bool) *SqlUserInfoService {
+func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus string, suspendedStatus string, noTime bool, options...bool) *UserInfoService {
 	var handleDriver bool
 	if len(options) >= 1 {
 		handleDriver = options[0]
@@ -39,13 +39,13 @@ func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus st
 		query = replaceQueryArgs(driver, query)
 		sqlPass = replaceQueryArgs(driver, sqlPass)
 	}
-	return &SqlUserInfoService{DB: db, Query: query, SqlPass: sqlPass, SqlFail: sqlFail, DisableStatus: disableStatus, SuspendedStatus: suspendedStatus, NoTime: noTime, Driver: driver}
+	return &UserInfoService{DB: db, Query: query, SqlPass: sqlPass, SqlFail: sqlFail, DisableStatus: disableStatus, SuspendedStatus: suspendedStatus, NoTime: noTime, Driver: driver}
 }
 
-func NewSqlUserInfoByConfig(db *sql.DB, c SqlConfig, options...bool) *SqlUserInfoService {
+func NewSqlUserInfoByConfig(db *sql.DB, c SqlConfig, options...bool) *UserInfoService {
 	return NewSqlUserInfoService(db, c.Query, c.SqlPass, c.SqlFail, c.DisableStatus, c.SuspendedStatus, c.NoTime, options...)
 }
-func (l SqlUserInfoService) GetUserInfo(ctx context.Context, auth a.AuthInfo) (*a.UserInfo, error) {
+func (l UserInfoService) GetUserInfo(ctx context.Context, auth a.AuthInfo) (*a.UserInfo, error) {
 	models := make([]a.UserInfo, 0)
 	rows, er1 := l.DB.QueryContext(ctx, l.Query, auth.Username)
 	if er1 != nil {
@@ -87,7 +87,7 @@ func (l SqlUserInfoService) GetUserInfo(ctx context.Context, auth a.AuthInfo) (*
 	}
 	return nil, nil
 }
-func (l SqlUserInfoService) Pass(ctx context.Context, user a.UserInfo) error {
+func (l UserInfoService) Pass(ctx context.Context, user a.UserInfo) error {
 	if len(l.SqlPass) == 0 {
 		return nil
 	}
@@ -99,7 +99,7 @@ func (l SqlUserInfoService) Pass(ctx context.Context, user a.UserInfo) error {
 		return err
 	}
 }
-func (l SqlUserInfoService) Fail(ctx context.Context, user a.UserInfo) error {
+func (l UserInfoService) Fail(ctx context.Context, user a.UserInfo) error {
 	if len(l.SqlFail) == 0 {
 		return nil
 	}
