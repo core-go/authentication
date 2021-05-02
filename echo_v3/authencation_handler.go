@@ -195,13 +195,9 @@ func parseIntWithType(value string, idType string) (v interface{}, err error) {
 	return value, nil
 }
 func respond(ctx echo.Context, code int, result interface{}, writeLog func(context.Context, string, string, bool, string) error, resource string, action string, success bool, desc string) error {
-	response, er1 := json.Marshal(result)
-	if er1 != nil {
-		return er1
-	}
-	er2 := ctx.JSON(code, response)
+	err := ctx.JSON(code, result)
 	if writeLog != nil {
 		writeLog(ctx.Request().Context(), resource, action, success, desc)
 	}
-	return er2
+	return err
 }

@@ -200,8 +200,7 @@ func parseIntWithType(value string, idType string) (v interface{}, err error) {
 	return value, nil
 }
 func respond(ctx *gin.Context, code int, result interface{}, writeLog func(context.Context, string, string, bool, string) error, resource string, action string, success bool, desc string) {
-	response, _ := json.Marshal(result)
-	ctx.JSON(code, response)
+	ctx.JSON(code, result)
 	if writeLog != nil {
 		writeLog(ctx.Request.Context(), resource, action, success, desc)
 	}
