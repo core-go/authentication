@@ -3,19 +3,7 @@ package sql
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"github.com/core-go/auth"
-	"reflect"
-	"strings"
-)
-
-const (
-	driverPostgres   = "postgres"
-	driverMysql      = "mysql"
-	driverMssql      = "mssql"
-	driverOracle     = "oracle"
-	driverSqlite3    = "sqlite3"
-	driverNotSupport = "no support"
 )
 
 type PrivilegesReader struct {
@@ -46,30 +34,9 @@ func NewPrivilegesReader(db *sql.DB, query string, options ...bool) *PrivilegesR
 func (l PrivilegesReader) Privileges(ctx context.Context) ([]auth.Privilege, error) {
 	models := make([]auth.Module, 0)
 	p0 := make([]auth.Privilege, 0)
-	rows, er1 := l.DB.QueryContext(ctx, l.Query)
+	_, er1 := query(ctx, l.DB, &models, l.Query)
 	if er1 != nil {
 		return p0, er1
-	}
-	defer rows.Close()
-	columns, er2 := rows.Columns()
-	if er2 != nil {
-		return p0, er2
-	}
-	// get list indexes column
-	modelTypes := reflect.TypeOf(models).Elem()
-	modelType := reflect.TypeOf(auth.Module{})
-	indexes, er3 := getColumnIndexes(modelType, columns, l.Driver)
-	if er3 != nil {
-		return p0, er3
-	}
-	tb, er4 := scanType(rows, modelTypes, indexes)
-	if er4 != nil {
-		return p0, er4
-	}
-	for _, v := range tb {
-		if c, ok := v.(*auth.Module); ok {
-			models = append(models, *c)
-		}
 	}
 	var p []auth.Privilege
 	if l.NoSequence == true {
@@ -78,50 +45,4 @@ func (l PrivilegesReader) Privileges(ctx context.Context) ([]auth.Privilege, err
 		p = auth.ToPrivileges(models)
 	}
 	return p, nil
-}
-func getDriver(db *sql.DB) string {
-	if db == nil {
-		return driverNotSupport
-	}
-	driver := reflect.TypeOf(db.Driver()).String()
-	switch driver {
-	case "*pq.Driver":
-		return driverPostgres
-	case "*godror.drv":
-		return driverOracle
-	case "*mysql.MySQLDriver":
-		return driverMysql
-	case "*mssql.Driver":
-		return driverMssql
-	case "*sqlite3.SQLiteDriver":
-		return driverSqlite3
-	default:
-		return driverNotSupport
-	}
-}
-
-func replaceQueryArgs(driver string, query string) string {
-	if driver == driverOracle || driver == driverPostgres || driver == driverMssql {
-		var x string
-		if driver == driverOracle {
-			x = ":val"
-		} else if driver == driverPostgres {
-			x = "$"
-		} else if driver == driverMssql {
-			x = "@p"
-		}
-		i := 1
-		k := strings.Index(query, "?")
-		if k >= 0 {
-			for {
-				query = strings.Replace(query, "?", x+fmt.Sprintf("%v", i), 1)
-				i = i + 1
-				k := strings.Index(query, "?")
-				if k < 0 {
-					return query
-				}
-			}
-		}
-	}
-	return query
 }

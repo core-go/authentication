@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	a "github.com/core-go/auth"
-	"reflect"
 	"time"
 )
 
@@ -47,43 +46,21 @@ func NewSqlUserInfoByConfig(db *sql.DB, c SqlConfig, options...bool) *UserInfoSe
 }
 func (l UserInfoService) GetUserInfo(ctx context.Context, auth a.AuthInfo) (*a.UserInfo, error) {
 	models := make([]a.UserInfo, 0)
-	rows, er1 := l.DB.QueryContext(ctx, l.Query, auth.Username)
-	if er1 != nil {
-		switch er1 {
-		case sql.ErrNoRows:
-			return nil, nil
-		default:
-			return nil, er1
-		}
+	_, err := query(ctx, l.DB, &models, l.Query, auth.Username)
+	if err != nil {
+		return nil, err
 	}
-	defer rows.Close()
-	modelTypes := reflect.TypeOf(models).Elem()
-	modelType := reflect.TypeOf(a.UserInfo{})
-	columns, er2 := rows.Columns()
-	if er2 != nil {
-		return nil, er2
-	}
-	// get list indexes column
-	indexes, er3 := getColumnIndexes(modelType, columns, l.Driver)
-	if er3 != nil {
-		return nil, er3
-	}
-	tb, er4 := scanType(rows, modelTypes, indexes)
-	if er4 != nil {
-		return nil, er4
-	}
-	if len(tb) > 0 {
-		if c, ok := tb[0].(*a.UserInfo); ok {
-			if len(c.Status) > 0 {
-				if c.Status == l.SuspendedStatus {
-					c.Suspended = true
-				}
-				if c.Status == l.DisableStatus {
-					c.Disable = true
-				}
+	if len(models) > 0 {
+		c := models[0]
+		if len(c.Status) > 0 {
+			if c.Status == l.SuspendedStatus {
+				c.Suspended = true
 			}
-			return c, nil
+			if c.Status == l.DisableStatus {
+				c.Disable = true
+			}
 		}
+		return &c, nil
 	}
 	return nil, nil
 }
