@@ -14,7 +14,10 @@ type MockLDAPAuthenticator struct {
 	Status    auth.Status
 }
 
-func NewDAPAuthenticatorByConfig(conf l.LDAPConfig, status auth.Status) (auth.Authenticator, error) {
+type IAuthenticator interface {
+	Authenticate(ctx context.Context, info auth.AuthInfo) (auth.AuthResult, error)
+}
+func NewDAPAuthenticatorByConfig(conf l.LDAPConfig, status auth.Status) (IAuthenticator, error) {
 	s := conf.Users
 	if len(s) > 0 {
 		users := strings.Split(conf.Users, ",")
