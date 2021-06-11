@@ -36,6 +36,11 @@ func OrPermissions(modules []Module) []Module {
 			}
 		}
 	}
+	if l >= 2 {
+		if modules[l1].Id != modules[l1-1].Id {
+			ms = append(ms, modules[l1])
+		}
+	}
 	return ms
 }
 func ToPrivileges(modules []Module) []Privilege {
