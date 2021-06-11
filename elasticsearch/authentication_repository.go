@@ -234,11 +234,11 @@ func (r *AuthenticationRepository) getPasswordInfo(ctx context.Context, user *au
 	return user
 }
 
-func (r *AuthenticationRepository) PassAuthentication(ctx context.Context, userId string) (int64, error) {
+func (r *AuthenticationRepository) Pass(ctx context.Context, userId string) (int64, error) {
 	return r.passAuthenticationAndActivate(ctx, userId, false)
 }
 
-func (r *AuthenticationRepository) PassAuthenticationAndActivate(ctx context.Context, userId string) (int64, error) {
+func (r *AuthenticationRepository) PassAndActivate(ctx context.Context, userId string) (int64, error) {
 	return r.passAuthenticationAndActivate(ctx, userId, true)
 }
 
@@ -277,7 +277,7 @@ func (r *AuthenticationRepository) passAuthenticationAndActivate(ctx context.Con
 	return k1 + k2, er2
 }
 
-func (r *AuthenticationRepository) WrongPassword(ctx context.Context, userId string, failCount int, lockedUntil *time.Time) error {
+func (r *AuthenticationRepository) Fail(ctx context.Context, userId string, failCount int, lockedUntil *time.Time) error {
 	if len(r.FailTimeName) == 0 && len(r.FailCountName) == 0 && len(r.LockedUntilTimeName) == 0 {
 		return nil
 	}
