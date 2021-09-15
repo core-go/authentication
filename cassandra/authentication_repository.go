@@ -9,17 +9,6 @@ import (
 
 	"github.com/core-go/auth"
 	"github.com/gocql/gocql"
-	// "go.mongodb.org/mongo-driver/bson"
-	// "go.mongodb.org/mongo-driver/bson"
-	// "github.com/core-go/auth"
-	// "go.mongodb.org/mongo-driver/bson"
-	// "go.mongodb.org/mongo-driver/bson/primitive"
-	// "go.mongodb.org/mongo-driver/mongo"
-	// "log"
-	// "reflect"
-	// "strconv"
-	// "strings"
-	// "time"
 )
 
 type AuthenticationRepository struct {
@@ -111,7 +100,6 @@ func (r *AuthenticationRepository) GetUserInfo(ctx context.Context, user string)
 			userInfo.Id = id.(string)
 		}
 		if len(r.StatusName) > 0 {
-			// rawStatus := raw.Lookup(r.StatusName)
 			if status, ok := row[r.StatusName]; ok {
 				r.StatusName = status.(string)
 			}
