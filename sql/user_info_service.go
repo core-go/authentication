@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	a "github.com/core-go/auth"
+	"reflect"
 	"time"
 )
 
@@ -24,9 +25,10 @@ type UserInfoService struct {
 	SuspendedStatus string
 	NoTime          bool
 	Driver          string
+	userFields      map[string]int
 }
 
-func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus string, suspendedStatus string, noTime bool, options...bool) *UserInfoService {
+func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus string, suspendedStatus string, noTime bool, options ...bool) (*UserInfoService, error) {
 	var handleDriver bool
 	if len(options) >= 1 {
 		handleDriver = options[0]
@@ -38,15 +40,21 @@ func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus st
 		query = replaceQueryArgs(driver, query)
 		sqlPass = replaceQueryArgs(driver, sqlPass)
 	}
-	return &UserInfoService{DB: db, Query: query, SqlPass: sqlPass, SqlFail: sqlFail, DisableStatus: disableStatus, SuspendedStatus: suspendedStatus, NoTime: noTime, Driver: driver}
+	var user a.UserInfo
+	userType := reflect.TypeOf(user)
+	userFields, err := getColumnIndexes(userType)
+	if err != nil {
+		return nil, err
+	}
+	return &UserInfoService{DB: db, Query: query, SqlPass: sqlPass, SqlFail: sqlFail, DisableStatus: disableStatus, SuspendedStatus: suspendedStatus, NoTime: noTime, Driver: driver, userFields: userFields}, nil
 }
 
-func NewSqlUserInfoByConfig(db *sql.DB, c SqlConfig, options...bool) *UserInfoService {
+func NewSqlUserInfoByConfig(db *sql.DB, c SqlConfig, options ...bool) (*UserInfoService, error) {
 	return NewSqlUserInfoService(db, c.Query, c.SqlPass, c.SqlFail, c.DisableStatus, c.SuspendedStatus, c.NoTime, options...)
 }
 func (l UserInfoService) GetUserInfo(ctx context.Context, auth a.AuthInfo) (*a.UserInfo, error) {
-	models := make([]a.UserInfo, 0)
-	_, err := query(ctx, l.DB, &models, l.Query, auth.Username)
+	var models []a.UserInfo
+	_, err := queryWithMap(ctx, l.DB, l.userFields, &models, l.Query, auth.Username)
 	if err != nil {
 		return nil, err
 	}

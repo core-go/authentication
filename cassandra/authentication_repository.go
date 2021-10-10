@@ -12,7 +12,7 @@ import (
 )
 
 type AuthenticationRepository struct {
-	UserCassandra           *gocql.ClusterConfig
+	Session                 *gocql.Session
 	userTableName           string
 	passwordTableName       string
 	CheckTwoFactors         func(ctx context.Context, id string) (bool, error)
@@ -41,17 +41,17 @@ type AuthenticationRepository struct {
 	TwoFactorsName          string
 }
 
-func NewAuthenticationRepositoryByConfig(db *gocql.ClusterConfig, userTableName, passwordTableName string, activatedStatus string, status auth.UserStatusConfig, c auth.SchemaConfig, options ...func(context.Context, string) (bool, error)) *AuthenticationRepository {
-	return NewAuthenticationRepository(db, userTableName, passwordTableName, activatedStatus, status, c.Id, c.Username, c.UserId, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.PasswordChangedTime, c.Password, c.Contact, c.Email, c.Phone, c.DisplayName, c.MaxPasswordAge, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors, options...)
+func NewAuthenticationRepositoryByConfig(session *gocql.Session, userTableName, passwordTableName string, activatedStatus string, status auth.UserStatusConfig, c auth.SchemaConfig, options ...func(context.Context, string) (bool, error)) *AuthenticationRepository {
+	return NewAuthenticationRepository(session, userTableName, passwordTableName, activatedStatus, status, c.Id, c.Username, c.UserId, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.PasswordChangedTime, c.Password, c.Contact, c.Email, c.Phone, c.DisplayName, c.MaxPasswordAge, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors, options...)
 }
 
-func NewAuthenticationRepository(db *gocql.ClusterConfig, userTableName, passwordTableName string, activatedStatus string, status auth.UserStatusConfig, idName, userName, userID, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, contactName, emailName, phoneName, displayNameName, maxPasswordAgeName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string, options ...func(context.Context, string) (bool, error)) *AuthenticationRepository {
+func NewAuthenticationRepository(session *gocql.Session, userTableName, passwordTableName string, activatedStatus string, status auth.UserStatusConfig, idName, userName, userID, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, contactName, emailName, phoneName, displayNameName, maxPasswordAgeName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string, options ...func(context.Context, string) (bool, error)) *AuthenticationRepository {
 	var checkTwoFactors func(context.Context, string) (bool, error)
 	if len(options) >= 1 {
 		checkTwoFactors = options[0]
 	}
 	return &AuthenticationRepository{
-		UserCassandra:           db,
+		Session:                 session,
 		userTableName:           strings.ToLower(userTableName),
 		passwordTableName:       strings.ToLower(passwordTableName),
 		CheckTwoFactors:         checkTwoFactors,
@@ -82,11 +82,8 @@ func NewAuthenticationRepository(db *gocql.ClusterConfig, userTableName, passwor
 }
 
 func (r *AuthenticationRepository) GetUserInfo(ctx context.Context, user string) (*auth.UserInfo, error) {
+	session := r.Session
 	userInfo := auth.UserInfo{}
-	session, er0 := r.UserCassandra.CreateSession()
-	if er0 != nil {
-		return nil, er0
-	}
 	query := "SELECT * FROM " + r.userTableName + " WHERE " + r.UserName + " = ? ALLOW FILTERING"
 	raws := session.Query(query, user).Iter()
 	for {
@@ -210,6 +207,7 @@ func (r *AuthenticationRepository) PassAndActivate(ctx context.Context, userId s
 }
 
 func (r *AuthenticationRepository) passAuthenticationAndActivate(ctx context.Context, userId string, updateStatus bool) (int64, error) {
+	session := r.Session
 	if len(r.SuccessTimeName) == 0 && len(r.FailCountName) == 0 && len(r.LockedUntilTimeName) == 0 {
 		if !updateStatus {
 			return 0, nil
@@ -231,15 +229,15 @@ func (r *AuthenticationRepository) passAuthenticationAndActivate(ctx context.Con
 		r.IdName: userId,
 	}
 	if !updateStatus {
-		return patch(ctx, r.UserCassandra, r.passwordTableName, pass, query)
+		return patch(ctx, session, r.passwordTableName, pass, query)
 	}
 
 	if r.userTableName == r.passwordTableName {
 		pass[r.StatusName] = r.activatedStatus
-		return patch(ctx, r.UserCassandra, r.passwordTableName, pass, query)
+		return patch(ctx, session, r.passwordTableName, pass, query)
 	}
 
-	k1, err := patch(ctx, r.UserCassandra, r.passwordTableName, pass, query)
+	k1, err := patch(ctx, session, r.passwordTableName, pass, query)
 	if err != nil {
 		return k1, err
 	}
@@ -247,7 +245,7 @@ func (r *AuthenticationRepository) passAuthenticationAndActivate(ctx context.Con
 	user := make(map[string]interface{})
 	user[r.IdName] = userId
 	user[r.StatusName] = r.activatedStatus
-	k2, err1 := patch(ctx, r.UserCassandra, r.userTableName, user, query)
+	k2, err1 := patch(ctx, session, r.userTableName, user, query)
 	return k1 + k2, err1
 }
 
@@ -269,15 +267,11 @@ func (r *AuthenticationRepository) Fail(ctx context.Context, userId string, fail
 	query := map[string]interface{}{
 		r.IdName: userId,
 	}
-	_, err := patch(ctx, r.UserCassandra, r.passwordTableName, pass, query)
+	_, err := patch(ctx, r.Session, r.passwordTableName, pass, query)
 	return err
 }
 
-func patch(ctx context.Context, db *gocql.ClusterConfig, table string, model map[string]interface{}, query map[string]interface{}) (int64, error) {
-	session, er0 := db.CreateSession()
-	if er0 != nil {
-		return 0, er0
-	}
+func patch(ctx context.Context, session *gocql.Session, table string, model map[string]interface{}, query map[string]interface{}) (int64, error) {
 	keyUpdate := ""
 	keyValue := ""
 	for k, v := range query {
@@ -296,13 +290,13 @@ func patch(ctx context.Context, db *gocql.ClusterConfig, table string, model map
 		if !flag {
 			if k == "failtime" || k == "lockeduntiltime" || k == "successtime" {
 				queryAddCol := "ALTER TABLE " + table + " ADD " + k + " timestamp"
-				er0 = session.Query(queryAddCol).Exec()
+				er0 := session.Query(queryAddCol).Exec()
 				if er0 != nil {
 					return 0, er0
 				}
 			} else {
 				queryAddCol := "ALTER TABLE " + table + " ADD " + k + " int"
-				er0 = session.Query(queryAddCol).Exec()
+				er0 := session.Query(queryAddCol).Exec()
 				if er0 != nil {
 					return 0, er0
 				}

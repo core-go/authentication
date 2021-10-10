@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"github.com/core-go/auth"
+	"reflect"
 	"strings"
 )
 
@@ -15,9 +16,10 @@ type PrivilegesLoader struct {
 	HandleDriver   bool
 	Driver         string
 	Or             bool
+	moduleFields   map[string]int
 }
 
-func NewPrivilegesLoader(db *sql.DB, query string, options ...int) *PrivilegesLoader {
+func NewPrivilegesLoader(db *sql.DB, query string, options ...int) (*PrivilegesLoader, error) {
 	var parameterCount int
 	if len(options) >= 1 && options[0] > 0 {
 		parameterCount = options[0]
@@ -26,7 +28,7 @@ func NewPrivilegesLoader(db *sql.DB, query string, options ...int) *PrivilegesLo
 	}
 	return NewSqlPrivilegesLoader(db, query, parameterCount, false, true, true)
 }
-func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int, options ...bool) *PrivilegesLoader {
+func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int, options ...bool) (*PrivilegesLoader, error) {
 	var or, handleDriver, noSequence bool
 	if len(options) >= 1 {
 		or = options[0]
@@ -47,10 +49,16 @@ func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int, option
 	if handleDriver {
 		query = replaceQueryArgs(driver, query)
 	}
-	return &PrivilegesLoader{DB: db, Query: query, ParameterCount: parameterCount, Or: or, NoSequence: noSequence, HandleDriver: handleDriver, Driver: driver}
+	var module auth.Module
+	moduleType := reflect.TypeOf(module)
+	moduleFields, err := getColumnIndexes(moduleType)
+	if err != nil {
+		return nil, err
+	}
+	return &PrivilegesLoader{DB: db, Query: query, ParameterCount: parameterCount, Or: or, NoSequence: noSequence, HandleDriver: handleDriver, Driver: driver, moduleFields: moduleFields}, nil
 }
 func (l PrivilegesLoader) Load(ctx context.Context, id string) ([]auth.Privilege, error) {
-	models := make([]auth.Module, 0)
+	var models []auth.Module
 	p0 := make([]auth.Privilege, 0)
 	params := make([]interface{}, 0)
 	params = append(params, id)
@@ -59,7 +67,7 @@ func (l PrivilegesLoader) Load(ctx context.Context, id string) ([]auth.Privilege
 			params = append(params, id)
 		}
 	}
-	columns, er1 := query(ctx, l.DB, &models, l.Query, params...)
+	columns, er1 := queryWithMap(ctx, l.DB, l.moduleFields, &models, l.Query, params...)
 	if er1 != nil {
 		return p0, er1
 	}
