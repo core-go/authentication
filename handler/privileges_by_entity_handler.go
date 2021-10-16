@@ -1,9 +1,11 @@
-package auth
+package handler
 
 import (
 	"context"
 	"net/http"
 	"strings"
+
+	. "github.com/core-go/auth"
 )
 
 type PrivilegesByEntityHandler struct {
@@ -39,13 +41,14 @@ func NewPrivilegesByEntityHandlerWithLog(load func(ctx context.Context, id strin
 }
 func (c *PrivilegesByEntityHandler) Privileges(w http.ResponseWriter, r *http.Request) {
 	id := ""
+	url := r.URL.Path
 	if c.Offset <= 0 {
-		i := strings.LastIndex(r.RequestURI, "/")
+		i := strings.LastIndex(url, "/")
 		if i >= 0 {
-			id = r.RequestURI[i+1:]
+			id = url[i+1:]
 		}
 	} else {
-		s := strings.Split(r.RequestURI, "/")
+		s := strings.Split(url, "/")
 		if len(s)-c.Offset-1 >= 0 {
 			id = s[len(s)-c.Offset-1]
 		} else {

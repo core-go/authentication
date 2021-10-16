@@ -39,43 +39,41 @@ func NewSignOutHandlerWithLog(verifyToken func(tokenString string, secret string
 	}
 	return &SignOutHandler{VerifyToken: verifyToken, Secret: secret, RevokeToken: revokeToken, Error: logError, Log: writeLog, Resource: resource, Action: action}
 }
-func (h *SignOutHandler) SignOut() echo.HandlerFunc {
-	return func(ctx echo.Context) error {
-		r := ctx.Request()
-		data := r.Header["Authorization"]
-		token := parseToken(data)
+func (h *SignOutHandler) SignOut(ctx echo.Context) error {
+	r := ctx.Request()
+	data := r.Header["Authorization"]
+	token := parseToken(data)
 
-		if len(token) == 0 {
-			return ctx.String(http.StatusBadRequest, "Invalid token")
-		}
+	if len(token) == 0 {
+		return ctx.String(http.StatusBadRequest, "Invalid token")
+	}
 
-		_, _, expiresAt, er1 := h.VerifyToken(token, h.Secret)
+	_, _, expiresAt, er1 := h.VerifyToken(token, h.Secret)
 
-		if er1 != nil {
-			return ctx.String(http.StatusBadRequest, "Invalid token")
-		}
+	if er1 != nil {
+		return ctx.String(http.StatusBadRequest, "Invalid token")
+	}
 
-		if h.RevokeToken == nil {
-			return ctx.String(http.StatusServiceUnavailable, "No service to sign out")
-		}
+	if h.RevokeToken == nil {
+		return ctx.String(http.StatusServiceUnavailable, "No service to sign out")
+	}
 
-		expiresTime := time.Unix(expiresAt, 0)
+	expiresTime := time.Unix(expiresAt, 0)
 
-		er2 := h.RevokeToken(token, "The token has signed out.", expiresTime)
-		if er2 != nil {
-			if h.Error != nil {
-				h.Error(r.Context(), er2.Error())
-			}
-			if h.Log != nil {
-				h.Log(r.Context(), h.Resource, h.Action, false, er2.Error())
-			}
-			return ctx.String(http.StatusInternalServerError, internalServerError)
+	er2 := h.RevokeToken(token, "The token has signed out.", expiresTime)
+	if er2 != nil {
+		if h.Error != nil {
+			h.Error(r.Context(), er2.Error())
 		}
 		if h.Log != nil {
-			h.Log(r.Context(), h.Resource, h.Action, true, "")
+			h.Log(r.Context(), h.Resource, h.Action, false, er2.Error())
 		}
-		return respond(ctx, http.StatusOK, true, h.Log, h.Resource, h.Action, true, "")
+		return ctx.String(http.StatusInternalServerError, internalServerError)
 	}
+	if h.Log != nil {
+		h.Log(r.Context(), h.Resource, h.Action, true, "")
+	}
+	return respond(ctx, http.StatusOK, true, h.Log, h.Resource, h.Action, true, "")
 }
 
 func parseToken(data []string) string {

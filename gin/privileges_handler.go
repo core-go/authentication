@@ -37,17 +37,15 @@ func NewPrivilegesHandlerWithLog(load func(context.Context) ([]a.Privilege, erro
 	h := PrivilegesHandler{Load: load, Error: logError, Resource: resource, Action: action, Log: writeLog}
 	return &h
 }
-func (c *PrivilegesHandler) All() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		r := ctx.Request
-		privileges, err := c.Load(r.Context())
-		if err != nil {
-			if c.Error != nil {
-				c.Error(r.Context(), err.Error())
-			}
-			respond(ctx, http.StatusInternalServerError, internalServerError, c.Log, c.Resource, c.Action, false, err.Error())
-		} else {
-			respond(ctx, http.StatusOK, privileges, c.Log, c.Resource, c.Action, true, "")
+func (c *PrivilegesHandler) All(ctx *gin.Context) {
+	r := ctx.Request
+	privileges, err := c.Load(r.Context())
+	if err != nil {
+		if c.Error != nil {
+			c.Error(r.Context(), err.Error())
 		}
+		respond(ctx, http.StatusInternalServerError, internalServerError, c.Log, c.Resource, c.Action, false, err.Error())
+	} else {
+		respond(ctx, http.StatusOK, privileges, c.Log, c.Resource, c.Action, true, "")
 	}
 }

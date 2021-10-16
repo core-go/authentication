@@ -39,32 +39,31 @@ func NewPrivilegesByEntityHandlerWithLog(load func(ctx context.Context, id strin
 	h := PrivilegesByEntityHandler{Load: load, Error: logError, Resource: resource, Action: action, Offset: offset, Log: writeLog}
 	return &h
 }
-func (c *PrivilegesByEntityHandler) Privileges() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		r := ctx.Request
-		id := ""
-		if c.Offset <= 0 {
-			i := strings.LastIndex(r.RequestURI, "/")
-			if i >= 0 {
-				id = r.RequestURI[i+1:]
-			}
-		} else {
-			s := strings.Split(r.RequestURI, "/")
-			if len(s)-c.Offset-1 >= 0 {
-				id = s[len(s)-c.Offset-1]
-			} else {
-				ctx.String(http.StatusBadRequest, "URL is not valid")
-				return
-			}
+func (c *PrivilegesByEntityHandler) Privileges(ctx *gin.Context) {
+	r := ctx.Request
+	id := ""
+	url := r.URL.Path
+	if c.Offset <= 0 {
+		i := strings.LastIndex(url, "/")
+		if i >= 0 {
+			id = url[i+1:]
 		}
-		privileges, err := c.Load(r.Context(), id)
-		if err != nil {
-			if c.Error != nil {
-				c.Error(r.Context(), err.Error())
-			}
-			respond(ctx, http.StatusInternalServerError, internalServerError, c.Log, c.Resource, c.Action, false, err.Error())
+	} else {
+		s := strings.Split(url, "/")
+		if len(s)-c.Offset-1 >= 0 {
+			id = s[len(s)-c.Offset-1]
 		} else {
-			respond(ctx, http.StatusOK, privileges, c.Log, c.Resource, c.Action, true, "")
+			ctx.String(http.StatusBadRequest, "URL is not valid")
+			return
 		}
+	}
+	privileges, err := c.Load(r.Context(), id)
+	if err != nil {
+		if c.Error != nil {
+			c.Error(r.Context(), err.Error())
+		}
+		respond(ctx, http.StatusInternalServerError, internalServerError, c.Log, c.Resource, c.Action, false, err.Error())
+	} else {
+		respond(ctx, http.StatusOK, privileges, c.Log, c.Resource, c.Action, true, "")
 	}
 }

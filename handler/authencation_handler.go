@@ -1,4 +1,4 @@
-package auth
+package handler
 
 import (
 	"context"
@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	. "github.com/core-go/auth"
 )
 
 type AuthenticationHandler struct {

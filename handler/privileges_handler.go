@@ -1,8 +1,10 @@
-package auth
+package handler
 
 import (
 	"context"
 	"net/http"
+
+	. "github.com/core-go/auth"
 )
 
 type PrivilegesHandler struct {

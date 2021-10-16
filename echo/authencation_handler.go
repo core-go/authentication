@@ -70,96 +70,94 @@ func NewAuthenticationHandlerWithWhitelist(authenticate func(context.Context, a.
 	return NewAuthenticationHandlerWithDecrypter(authenticate, systemError, timeout, logError, addTokenIntoWhitelist, ipFromRequest, nil, "", writeLog, "ip", "userId", "authentication", "authenticate")
 }
 
-func (h *AuthenticationHandler) Authenticate() echo.HandlerFunc {
-	return func(ctx echo.Context) error {
-		r := ctx.Request()
-		var user a.AuthInfo
-		if strings.Contains(r.Header.Get("Content-Type"), "multipart/form-data") {
-			if err := r.ParseMultipartForm(1073741824); err != nil {
-				return ctx.String(http.StatusBadRequest, "cannot parse form: "+err.Error())
-			}
-			modelType := reflect.TypeOf(user)
-			mapIndexModels, err := getIndexesByTagJson(modelType)
-			if err != nil {
-				if h.Error != nil {
-					h.Error(r.Context(), "cannot decode authentication info: "+err.Error())
-				}
-				return ctx.String(http.StatusBadRequest, "cannot decode authentication info")
-			}
-
-			postForm := r.PostForm
-			userV := reflect.Indirect(reflect.ValueOf(&user))
-			for k, v := range postForm {
-				if index, ok := mapIndexModels[k]; ok {
-					idType := userV.Field(index).Type().String()
-					if strings.Index(idType, "int") >= 0 {
-						valueField, err := parseIntWithType(v[0], idType)
-						if err != nil {
-							return ctx.String(http.StatusBadRequest, "invalid key: "+k)
-						}
-						userV.Field(index).Set(reflect.ValueOf(valueField))
-					} else {
-						userV.Field(index).Set(reflect.ValueOf(v[0]))
-					}
-				}
-			}
-		} else {
-			er1 := json.NewDecoder(r.Body).Decode(&user)
-			if er1 != nil {
-				if h.Error != nil {
-					msg := "cannot decode authentication info: " + er1.Error()
-					h.Error(r.Context(), msg)
-				}
-				return ctx.String(http.StatusBadRequest, "cannot decode authentication info")
-			}
+func (h *AuthenticationHandler) Authenticate(ctx echo.Context) error {
+	r := ctx.Request()
+	var user a.AuthInfo
+	if strings.Contains(r.Header.Get("Content-Type"), "multipart/form-data") {
+		if err := r.ParseMultipartForm(1073741824); err != nil {
+			return ctx.String(http.StatusBadRequest, "cannot parse form: "+err.Error())
 		}
-
-		var ctx2 context.Context
-		ctx2 = r.Context()
-		if len(h.Ip) > 0 {
-			var ip string
-			if len(user.Ip) > 0 && h.IpFromRequest {
-				ip = user.Ip
-			} else {
-				ip = getRemoteIp(r)
-			}
-			ctx2 = context.WithValue(ctx2, h.Ip, ip)
-			r = r.WithContext(ctx2)
-			ctx.SetRequest(r)
-		}
-
-		if h.Decrypt != nil && len(h.EncryptionKey) > 0 {
-			if decodedPassword, er2 := h.Decrypt(user.Password, h.EncryptionKey); er2 != nil {
-				if h.Error != nil {
-					h.Error(r.Context(), "cannot decrypt password: "+er2.Error())
-				}
-				return ctx.String(http.StatusBadRequest, "cannot decrypt password")
-			} else {
-				user.Password = decodedPassword
-			}
-		}
-
-		result, er3 := h.Auth(r.Context(), user)
-		if er3 != nil {
+		modelType := reflect.TypeOf(user)
+		mapIndexModels, err := getIndexesByTagJson(modelType)
+		if err != nil {
 			if h.Error != nil {
-				h.Error(r.Context(), er3.Error())
+				h.Error(r.Context(), "cannot decode authentication info: "+err.Error())
 			}
-			if result.Status == h.Timeout {
-				return respond(ctx, http.StatusGatewayTimeout, "timeout", h.Log, h.Resource, h.Action, false, er3.Error())
-			} else {
-				result.Status = h.SystemError
-				return respond(ctx, http.StatusInternalServerError, result, h.Log, h.Resource, h.Action, false, er3.Error())
-			}
-		} else {
-			if h.Whitelist != nil {
-				h.Whitelist(result.User.Id, result.User.Token)
-			}
-			if len(h.UserId) > 0 && result.User != nil && len(result.User.Id) > 0 {
-				ctx2 = context.WithValue(ctx2, h.UserId, result.User.Id)
-				ctx.SetRequest(r.WithContext(ctx2))
-			}
-			return respond(ctx, http.StatusOK, result, h.Log, h.Resource, h.Action, true, "")
+			return ctx.String(http.StatusBadRequest, "cannot decode authentication info")
 		}
+
+		postForm := r.PostForm
+		userV := reflect.Indirect(reflect.ValueOf(&user))
+		for k, v := range postForm {
+			if index, ok := mapIndexModels[k]; ok {
+				idType := userV.Field(index).Type().String()
+				if strings.Index(idType, "int") >= 0 {
+					valueField, err := parseIntWithType(v[0], idType)
+					if err != nil {
+						return ctx.String(http.StatusBadRequest, "invalid key: "+k)
+					}
+					userV.Field(index).Set(reflect.ValueOf(valueField))
+				} else {
+					userV.Field(index).Set(reflect.ValueOf(v[0]))
+				}
+			}
+		}
+	} else {
+		er1 := json.NewDecoder(r.Body).Decode(&user)
+		if er1 != nil {
+			if h.Error != nil {
+				msg := "cannot decode authentication info: " + er1.Error()
+				h.Error(r.Context(), msg)
+			}
+			return ctx.String(http.StatusBadRequest, "cannot decode authentication info")
+		}
+	}
+
+	var ctx2 context.Context
+	ctx2 = r.Context()
+	if len(h.Ip) > 0 {
+		var ip string
+		if len(user.Ip) > 0 && h.IpFromRequest {
+			ip = user.Ip
+		} else {
+			ip = getRemoteIp(r)
+		}
+		ctx2 = context.WithValue(ctx2, h.Ip, ip)
+		r = r.WithContext(ctx2)
+		ctx.SetRequest(r)
+	}
+
+	if h.Decrypt != nil && len(h.EncryptionKey) > 0 {
+		if decodedPassword, er2 := h.Decrypt(user.Password, h.EncryptionKey); er2 != nil {
+			if h.Error != nil {
+				h.Error(r.Context(), "cannot decrypt password: "+er2.Error())
+			}
+			return ctx.String(http.StatusBadRequest, "cannot decrypt password")
+		} else {
+			user.Password = decodedPassword
+		}
+	}
+
+	result, er3 := h.Auth(r.Context(), user)
+	if er3 != nil {
+		if h.Error != nil {
+			h.Error(r.Context(), er3.Error())
+		}
+		if result.Status == h.Timeout {
+			return respond(ctx, http.StatusGatewayTimeout, "timeout", h.Log, h.Resource, h.Action, false, er3.Error())
+		} else {
+			result.Status = h.SystemError
+			return respond(ctx, http.StatusInternalServerError, result, h.Log, h.Resource, h.Action, false, er3.Error())
+		}
+	} else {
+		if h.Whitelist != nil {
+			h.Whitelist(result.User.Id, result.User.Token)
+		}
+		if len(h.UserId) > 0 && result.User != nil && len(result.User.Id) > 0 {
+			ctx2 = context.WithValue(ctx2, h.UserId, result.User.Id)
+			ctx.SetRequest(r.WithContext(ctx2))
+		}
+		return respond(ctx, http.StatusOK, result, h.Log, h.Resource, h.Action, true, "")
 	}
 }
 func getRemoteIp(r *http.Request) string {
