@@ -1,34 +1,34 @@
 package auth
 
 type StatusConfig struct {
-	Timeout               *int `mapstructure:"timeout" json:"timeout,omitempty" gorm:"column:timeout" bson:"timeout,omitempty" dynamodbav:"timeout,omitempty" firestore:"timeout,omitempty"`
-	NotFound              *int `mapstructure:"not_found" json:"notFound,omitempty" gorm:"column:notfound" bson:"notFound,omitempty" dynamodbav:"notFound,omitempty" firestore:"notFound,omitempty"`
-	Fail                  *int `mapstructure:"fail" json:"fail,omitempty" gorm:"column:fail" bson:"fail,omitempty" dynamodbav:"fail,omitempty" firestore:"fail,omitempty"`
-	Success               *int `mapstructure:"success" json:"success,omitempty" gorm:"column:success" bson:"success,omitempty" dynamodbav:"success,omitempty" firestore:"success,omitempty"`
-	SuccessAndReactivated *int `mapstructure:"success_and_reactivated" json:"successAndReactivated,omitempty" gorm:"column:successandreactivated" bson:"successAndReactivated,omitempty" dynamodbav:"successAndReactivated,omitempty" firestore:"successAndReactivated,omitempty"`
-	TwoFactorRequired     *int `mapstructure:"two_factor_required" json:"twoFactorRequired,omitempty" gorm:"column:twofactorrequired" bson:"twoFactorRequired,omitempty" dynamodbav:"twoFactorRequired,omitempty" firestore:"twoFactorRequired,omitempty"`
-	WrongPassword         *int `mapstructure:"wrong_password" json:"wrongPassword,omitempty" gorm:"column:wrongpassword" bson:"wrongPassword,omitempty" dynamodbav:"wrongPassword,omitempty" firestore:"wrongPassword,omitempty"`
-	PasswordExpired       *int `mapstructure:"password_expired" json:"passwordExpired,omitempty" gorm:"column:passwordexpired" bson:"passwordExpired,omitempty" dynamodbav:"passwordExpired,omitempty" firestore:"passwordExpired,omitempty"`
-	AccessTimeLocked      *int `mapstructure:"access_time_locked" json:"accessTimeLocked,omitempty" gorm:"column:accesstimelocked" bson:"accessTimeLocked,omitempty" dynamodbav:"accessTimeLocked,omitempty" firestore:"accessTimeLocked,omitempty"`
-	Locked                *int `mapstructure:"locked" json:"locked,omitempty" gorm:"column:locked" bson:"locked,omitempty" dynamodbav:"locked,omitempty" firestore:"locked,omitempty"`
-	Suspended             *int `mapstructure:"suspended" json:"suspended,omitempty" gorm:"column:suspended" bson:"suspended,omitempty" dynamodbav:"suspended,omitempty" firestore:"suspended,omitempty"`
-	Disabled              *int `mapstructure:"disabled" json:"disabled,omitempty" gorm:"column:disabled" bson:"disabled,omitempty" dynamodbav:"disabled,omitempty" firestore:"disabled,omitempty"`
-	Error                 *int `mapstructure:"Error" json:"error,omitempty" gorm:"column:error" bson:"error,omitempty" dynamodbav:"error,omitempty" firestore:"error,omitempty"`
+	Timeout               *int `yaml:"timeout" mapstructure:"timeout" json:"timeout,omitempty" gorm:"column:timeout" bson:"timeout,omitempty" dynamodbav:"timeout,omitempty" firestore:"timeout,omitempty"`
+	NotFound              *int `yaml:"not_found" mapstructure:"not_found" json:"notFound,omitempty" gorm:"column:notfound" bson:"notFound,omitempty" dynamodbav:"notFound,omitempty" firestore:"notFound,omitempty"`
+	Fail                  *int `yaml:"fail" mapstructure:"fail" json:"fail,omitempty" gorm:"column:fail" bson:"fail,omitempty" dynamodbav:"fail,omitempty" firestore:"fail,omitempty"`
+	Success               *int `yaml:"success" mapstructure:"success" json:"success,omitempty" gorm:"column:success" bson:"success,omitempty" dynamodbav:"success,omitempty" firestore:"success,omitempty"`
+	SuccessAndReactivated *int `yaml:"success_and_reactivated" mapstructure:"success_and_reactivated" json:"successAndReactivated,omitempty" gorm:"column:successandreactivated" bson:"successAndReactivated,omitempty" dynamodbav:"successAndReactivated,omitempty" firestore:"successAndReactivated,omitempty"`
+	TwoFactorRequired     *int `yaml:"two_factor_required" mapstructure:"two_factor_required" json:"twoFactorRequired,omitempty" gorm:"column:twofactorrequired" bson:"twoFactorRequired,omitempty" dynamodbav:"twoFactorRequired,omitempty" firestore:"twoFactorRequired,omitempty"`
+	WrongPassword         *int `yaml:"wrong_password" mapstructure:"wrong_password" json:"wrongPassword,omitempty" gorm:"column:wrongpassword" bson:"wrongPassword,omitempty" dynamodbav:"wrongPassword,omitempty" firestore:"wrongPassword,omitempty"`
+	PasswordExpired       *int `yaml:"password_expired" mapstructure:"password_expired" json:"passwordExpired,omitempty" gorm:"column:passwordexpired" bson:"passwordExpired,omitempty" dynamodbav:"passwordExpired,omitempty" firestore:"passwordExpired,omitempty"`
+	AccessTimeLocked      *int `yaml:"access_time_locked" mapstructure:"access_time_locked" json:"accessTimeLocked,omitempty" gorm:"column:accesstimelocked" bson:"accessTimeLocked,omitempty" dynamodbav:"accessTimeLocked,omitempty" firestore:"accessTimeLocked,omitempty"`
+	Locked                *int `yaml:"locked" mapstructure:"locked" json:"locked,omitempty" gorm:"column:locked" bson:"locked,omitempty" dynamodbav:"locked,omitempty" firestore:"locked,omitempty"`
+	Suspended             *int `yaml:"suspended" mapstructure:"suspended" json:"suspended,omitempty" gorm:"column:suspended" bson:"suspended,omitempty" dynamodbav:"suspended,omitempty" firestore:"suspended,omitempty"`
+	Disabled              *int `yaml:"disabled" mapstructure:"disabled" json:"disabled,omitempty" gorm:"column:disabled" bson:"disabled,omitempty" dynamodbav:"disabled,omitempty" firestore:"disabled,omitempty"`
+	Error                 *int `yaml:"error" mapstructure:"error" json:"error,omitempty" gorm:"column:error" bson:"error,omitempty" dynamodbav:"error,omitempty" firestore:"error,omitempty"`
 }
 type Status struct {
-	Timeout               int `mapstructure:"timeout" json:"timeout,omitempty" gorm:"column:timeout" bson:"timeout,omitempty" dynamodbav:"timeout,omitempty" firestore:"timeout,omitempty"`
-	NotFound              int `mapstructure:"not_found" json:"notFound,omitempty" gorm:"column:notfound" bson:"notFound,omitempty" dynamodbav:"notFound,omitempty" firestore:"notFound,omitempty"`
-	Fail                  int `mapstructure:"fail" json:"fail,omitempty" gorm:"column:fail" bson:"fail,omitempty" dynamodbav:"fail,omitempty" firestore:"fail,omitempty"`
-	Success               int `mapstructure:"success" json:"success,omitempty" gorm:"column:success" bson:"success,omitempty" dynamodbav:"success,omitempty" firestore:"success,omitempty"`
-	SuccessAndReactivated int `mapstructure:"success_and_reactivated" json:"successAndReactivated,omitempty" gorm:"column:successandreactivated" bson:"successAndReactivated,omitempty" dynamodbav:"successAndReactivated,omitempty" firestore:"successAndReactivated,omitempty"`
-	TwoFactorRequired     int `mapstructure:"two_factor_required" json:"twoFactorRequired,omitempty" gorm:"column:twofactorrequired" bson:"twoFactorRequired,omitempty" dynamodbav:"twoFactorRequired,omitempty" firestore:"twoFactorRequired,omitempty"`
-	WrongPassword         int `mapstructure:"wrong_password" json:"wrongPassword,omitempty" gorm:"column:wrongpassword" bson:"wrongPassword,omitempty" dynamodbav:"wrongPassword,omitempty" firestore:"wrongPassword,omitempty"`
-	PasswordExpired       int `mapstructure:"password_expired" json:"passwordExpired,omitempty" gorm:"column:passwordexpired" bson:"passwordExpired,omitempty" dynamodbav:"passwordExpired,omitempty" firestore:"passwordExpired,omitempty"`
-	AccessTimeLocked      int `mapstructure:"access_time_locked" json:"accessTimeLocked,omitempty" gorm:"column:accesstimelocked" bson:"accessTimeLocked,omitempty" dynamodbav:"accessTimeLocked,omitempty" firestore:"accessTimeLocked,omitempty"`
-	Locked                int `mapstructure:"locked" json:"locked,omitempty" gorm:"column:locked" bson:"locked,omitempty" dynamodbav:"locked,omitempty" firestore:"locked,omitempty"`
-	Suspended             int `mapstructure:"suspended" json:"suspended,omitempty" gorm:"column:suspended" bson:"suspended,omitempty" dynamodbav:"suspended,omitempty" firestore:"suspended,omitempty"`
-	Disabled              int `mapstructure:"disabled" json:"disabled,omitempty" gorm:"column:disabled" bson:"disabled,omitempty" dynamodbav:"disabled,omitempty" firestore:"disabled,omitempty"`
-	Error                 int `mapstructure:"error" json:"error,omitempty" gorm:"column:error" bson:"error,omitempty" dynamodbav:"error,omitempty" firestore:"error,omitempty"`
+	Timeout               int `yaml:"timeout" mapstructure:"timeout" json:"timeout,omitempty" gorm:"column:timeout" bson:"timeout,omitempty" dynamodbav:"timeout,omitempty" firestore:"timeout,omitempty"`
+	NotFound              int `yaml:"not_found" mapstructure:"not_found" json:"notFound,omitempty" gorm:"column:notfound" bson:"notFound,omitempty" dynamodbav:"notFound,omitempty" firestore:"notFound,omitempty"`
+	Fail                  int `yaml:"fail" mapstructure:"fail" json:"fail,omitempty" gorm:"column:fail" bson:"fail,omitempty" dynamodbav:"fail,omitempty" firestore:"fail,omitempty"`
+	Success               int `yaml:"success" mapstructure:"success" json:"success,omitempty" gorm:"column:success" bson:"success,omitempty" dynamodbav:"success,omitempty" firestore:"success,omitempty"`
+	SuccessAndReactivated int `yaml:"success_and_reactivated" mapstructure:"success_and_reactivated" json:"successAndReactivated,omitempty" gorm:"column:successandreactivated" bson:"successAndReactivated,omitempty" dynamodbav:"successAndReactivated,omitempty" firestore:"successAndReactivated,omitempty"`
+	TwoFactorRequired     int `yaml:"two_factor_required" mapstructure:"two_factor_required" json:"twoFactorRequired,omitempty" gorm:"column:twofactorrequired" bson:"twoFactorRequired,omitempty" dynamodbav:"twoFactorRequired,omitempty" firestore:"twoFactorRequired,omitempty"`
+	WrongPassword         int `yaml:"wrong_password" mapstructure:"wrong_password" json:"wrongPassword,omitempty" gorm:"column:wrongpassword" bson:"wrongPassword,omitempty" dynamodbav:"wrongPassword,omitempty" firestore:"wrongPassword,omitempty"`
+	PasswordExpired       int `yaml:"password_expired" mapstructure:"password_expired" json:"passwordExpired,omitempty" gorm:"column:passwordexpired" bson:"passwordExpired,omitempty" dynamodbav:"passwordExpired,omitempty" firestore:"passwordExpired,omitempty"`
+	AccessTimeLocked      int `yaml:"access_time_locked" mapstructure:"access_time_locked" json:"accessTimeLocked,omitempty" gorm:"column:accesstimelocked" bson:"accessTimeLocked,omitempty" dynamodbav:"accessTimeLocked,omitempty" firestore:"accessTimeLocked,omitempty"`
+	Locked                int `yaml:"locked" mapstructure:"locked" json:"locked,omitempty" gorm:"column:locked" bson:"locked,omitempty" dynamodbav:"locked,omitempty" firestore:"locked,omitempty"`
+	Suspended             int `yaml:"suspended" mapstructure:"suspended" json:"suspended,omitempty" gorm:"column:suspended" bson:"suspended,omitempty" dynamodbav:"suspended,omitempty" firestore:"suspended,omitempty"`
+	Disabled              int `yaml:"disabled" mapstructure:"disabled" json:"disabled,omitempty" gorm:"column:disabled" bson:"disabled,omitempty" dynamodbav:"disabled,omitempty" firestore:"disabled,omitempty"`
+	Error                 int `yaml:"error" mapstructure:"error" json:"error,omitempty" gorm:"column:error" bson:"error,omitempty" dynamodbav:"error,omitempty" firestore:"error,omitempty"`
 }
 
 func InitStatus(c *StatusConfig) Status {

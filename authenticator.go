@@ -11,14 +11,14 @@ import (
 type Authenticator struct {
 	Status             Status
 	PayloadConfig      PayloadConfig
-	UserInfoService    UserInfoService
+	Repository         UserInfoService
 	Check              func(ctx context.Context, user AuthInfo) (AuthResult, error)
 	PasswordComparator ValueComparator
 	Privileges         func(ctx context.Context, id string) ([]Privilege, error)
 	GenerateToken      func(payload interface{}, secret string, expiresIn int64) (string, error)
 	TokenConfig        TokenConfig
 	CodeExpires        int64
-	CodeService        CodeService
+	CodeRepository     CodeRepository
 	SendCode           func(ctx context.Context, to string, code string, expireAt time.Time, params interface{}) error
 	GenerateCode       func() string
 }
@@ -30,7 +30,7 @@ func NewBasicAuthenticator(status Status, check func(context.Context, AuthInfo) 
 	}
 	return NewBasicAuthenticatorWithTwoFactors(status, check, userInfoService, generateToken, tokenConfig, payloadConfig, loadPrivileges, nil, nil, 0)
 }
-func NewBasicAuthenticatorWithTwoFactors(status Status, check func(context.Context, AuthInfo) (AuthResult, error), userInfoService UserInfoService, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, loadPrivileges func(context.Context, string) ([]Privilege, error), sendCode func(context.Context, string, string, time.Time, interface{}) error, codeService CodeService, codeExpires int64, options ...func() string) *Authenticator {
+func NewBasicAuthenticatorWithTwoFactors(status Status, check func(context.Context, AuthInfo) (AuthResult, error), userInfoService UserInfoService, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, loadPrivileges func(context.Context, string) ([]Privilege, error), sendCode func(context.Context, string, string, time.Time, interface{}) error, codeService CodeRepository, codeExpires int64, options ...func() string) *Authenticator {
 	if check == nil {
 		panic(errors.New("basic check cannot be nil"))
 	}
@@ -42,17 +42,17 @@ func NewBasicAuthenticatorWithTwoFactors(status Status, check func(context.Conte
 		generate = options[0]
 	}
 	service := &Authenticator{
-		Status:          status,
-		PayloadConfig:   payloadConfig,
-		Check:           check,
-		UserInfoService: userInfoService,
-		Privileges:      loadPrivileges,
-		GenerateToken:   generateToken,
-		TokenConfig:     tokenConfig,
-		CodeExpires:     codeExpires,
-		CodeService:     codeService,
-		SendCode:        sendCode,
-		GenerateCode:    generate,
+		Status:         status,
+		PayloadConfig:  payloadConfig,
+		Check:          check,
+		Repository:     userInfoService,
+		Privileges:     loadPrivileges,
+		GenerateToken:  generateToken,
+		TokenConfig:    tokenConfig,
+		CodeExpires:    codeExpires,
+		CodeRepository: codeService,
+		SendCode:       sendCode,
+		GenerateCode:   generate,
 	}
 	return service
 }
@@ -63,7 +63,7 @@ func NewAuthenticator(status Status, userInfoService UserInfoService, passwordCo
 	}
 	return NewAuthenticatorWithTwoFactors(status, userInfoService, passwordComparator, generateToken, tokenConfig, payloadConfig, loadPrivileges, nil, nil, 0, nil)
 }
-func NewAuthenticatorWithTwoFactors(status Status, userInfoService UserInfoService, passwordComparator ValueComparator, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, loadPrivileges func(context.Context, string) ([]Privilege, error), sendCode func(context.Context, string, string, time.Time, interface{}) error, codeService CodeService, codeExpires int64, options ...func() string) *Authenticator {
+func NewAuthenticatorWithTwoFactors(status Status, userInfoService UserInfoService, passwordComparator ValueComparator, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, loadPrivileges func(context.Context, string) ([]Privilege, error), sendCode func(context.Context, string, string, time.Time, interface{}) error, codeService CodeRepository, codeExpires int64, options ...func() string) *Authenticator {
 	if passwordComparator == nil {
 		panic(errors.New("password comparator cannot be nil"))
 	}
@@ -78,13 +78,13 @@ func NewAuthenticatorWithTwoFactors(status Status, userInfoService UserInfoServi
 		Status:             status,
 		PayloadConfig:      payloadConfig,
 		Check:              nil,
-		UserInfoService:    userInfoService,
+		Repository:         userInfoService,
 		PasswordComparator: passwordComparator,
 		Privileges:         loadPrivileges,
 		GenerateToken:      generateToken,
 		TokenConfig:        tokenConfig,
 		CodeExpires:        codeExpires,
-		CodeService:        codeService,
+		CodeRepository:     codeService,
 		SendCode:           sendCode,
 		GenerateCode:       generate,
 	}
@@ -107,13 +107,13 @@ func (s *Authenticator) Authenticate(ctx context.Context, info AuthInfo) (AuthRe
 		if er0 != nil || result.Status != s.Status.Success && result.Status != s.Status.SuccessAndReactivated {
 			return result, er0
 		}
-		if s.UserInfoService == nil {
+		if s.Repository == nil {
 			var tokenExpiredTime = time.Now().Add(time.Second * time.Duration(int(s.TokenConfig.Expires/1000)))
 			var payload map[string]interface{}
 			if result.User == nil {
 				payload = make(map[string]interface{})
-				if len(s.PayloadConfig.UserId) > 0 {
-					payload[s.PayloadConfig.UserId] = info.Username
+				if len(s.PayloadConfig.Id) > 0 {
+					payload[s.PayloadConfig.Id] = info.Username
 				}
 				if len(s.PayloadConfig.Username) > 0 {
 					payload[s.PayloadConfig.Username] = info.Username
@@ -135,7 +135,7 @@ func (s *Authenticator) Authenticate(ctx context.Context, info AuthInfo) (AuthRe
 		}
 	}
 
-	user, er1 := s.UserInfoService.GetUserInfo(ctx, info)
+	user, er1 := s.Repository.GetUserInfo(ctx, info)
 	if er1 != nil {
 		return result, er1
 	}
@@ -150,7 +150,7 @@ func (s *Authenticator) Authenticate(ctx context.Context, info AuthInfo) (AuthRe
 			return result, er2
 		}
 		if !validPassword {
-			er3 := s.UserInfoService.Fail(ctx, *user)
+			er3 := s.Repository.Fail(ctx, *user)
 			if er3 != nil {
 				return result, er3
 			}
@@ -169,13 +169,13 @@ func (s *Authenticator) Authenticate(ctx context.Context, info AuthInfo) (AuthRe
 		result.Status = s.Status.Suspended
 		return result, nil
 	}
-
+/*
 	locked := user.LockedUntilTime != nil && (compareDate(time.Now(), *user.LockedUntilTime) < 0)
 	if locked {
 		result.Status = s.Status.Locked
 		return result, nil
 	}
-
+*/
 	var passwordExpiredTime *time.Time = nil // date.addDays(time.Now(), 10)
 	if user.PasswordChangedTime != nil && user.MaxPasswordAge != 0 {
 		t := addDays(*user.PasswordChangedTime, user.MaxPasswordAge)
@@ -210,7 +210,7 @@ func (s *Authenticator) Authenticate(ctx context.Context, info AuthInfo) (AuthRe
 				return result, er0
 			}
 			expiredAt := addSeconds(time.Now(), s.CodeExpires)
-			count, er1 := s.CodeService.Save(ctx, userId, codeSave, expiredAt)
+			count, er1 := s.CodeRepository.Save(ctx, userId, codeSave, expiredAt)
 			if count > 0 && er1 == nil {
 				er3 := s.SendCode(ctx, username, codeSend, expiredAt, user.Contact)
 				if er3 != nil {
@@ -220,17 +220,17 @@ func (s *Authenticator) Authenticate(ctx context.Context, info AuthInfo) (AuthRe
 				return result, nil
 			}
 		}
-		code, expiredAt, er4 := s.CodeService.Load(ctx, userId)
+		code, expiredAt, er4 := s.CodeRepository.Load(ctx, userId)
 		if er4 != nil || len(code) == 0 {
 			return result, er4
 		}
 		if compareDate(expiredAt, time.Now()) < 0 {
-			deleteCode(ctx, s.CodeService, userId)
+			deleteCode(ctx, s.CodeRepository, userId)
 			return result, nil
 		}
 		valid, er5 := s.PasswordComparator.Compare(info.Passcode, code)
 		if er5 == nil {
-			deleteCode(ctx, s.CodeService, userId)
+			deleteCode(ctx, s.CodeRepository, userId)
 		}
 		if !valid || er5 != nil {
 			return result, er5
@@ -264,14 +264,14 @@ func (s *Authenticator) Authenticate(ctx context.Context, info AuthInfo) (AuthRe
 		}
 	}
 	result.User = &account
-	er6 := s.UserInfoService.Pass(ctx, *user)
+	er6 := s.Repository.Pass(ctx, *user)
 	if er6 != nil {
 		return result, er6
 	}
 	return result, nil
 }
 
-func deleteCode(ctx context.Context, codeService CodeService, id string) {
+func deleteCode(ctx context.Context, codeService CodeRepository, id string) {
 	go func() {
 		timeOut := 30 * time.Second
 		ctxDelete, cancel := context.WithTimeout(context.Background(), timeOut)
@@ -345,8 +345,8 @@ func UserAccountToPayload(ctx context.Context, u *UserAccount, s PayloadConfig) 
 	if u == nil {
 		return payload
 	}
-	if s.UserId != "" {
-		payload[s.UserId] = u.Id
+	if s.Id != "" {
+		payload[s.Id] = u.Id
 	}
 	if s.Username != "" {
 		payload[s.Username] = u.Username
@@ -376,8 +376,8 @@ func ToPayload(ctx context.Context, user *UserInfo, s PayloadConfig) map[string]
 	if user == nil {
 		return payload
 	}
-	if len(s.UserId) > 0 && len(user.Id) > 0 {
-		payload[s.UserId] = user.Id
+	if len(s.Id) > 0 && len(user.Id) > 0 {
+		payload[s.Id] = user.Id
 	}
 	if len(s.Username) > 0 && len(user.Username) > 0 {
 		payload[s.Username] = user.Username
