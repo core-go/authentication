@@ -305,33 +305,15 @@ func mapUserInfoToUserAccount(user UserInfo) UserAccount {
 	if len(user.Id) > 0 {
 		account.Id = user.Id
 	}
-	if len(user.DisplayName) > 0 {
-		account.DisplayName = user.DisplayName
-	}
-	if len(user.Contact) > 0 {
-		account.Contact = user.Contact
-	}
-	if len(user.Email) > 0 {
-		account.Email = user.Email
-	}
-	if len(user.Phone) > 0 {
-		account.Phone = user.Phone
-	}
-	if len(user.DateFormat) > 0 {
-		account.DateFormat = user.DateFormat
-	}
-	if len(user.TimeFormat) > 0 {
-		account.TimeFormat = user.TimeFormat
-	}
-	if len(user.Language) > 0 {
-		account.Language = user.Language
-	}
-	if len(user.ImageURL) > 0 {
-		account.ImageURL = user.ImageURL
-	}
-	if len(user.Gender) > 0 {
-		account.Gender = user.Gender
-	}
+	account.DisplayName = user.DisplayName
+	account.Contact = user.Contact
+	account.Email = user.Email
+	account.Phone = user.Phone
+	account.DateFormat = user.DateFormat
+	account.TimeFormat = user.TimeFormat
+	account.Language = user.Language
+	account.ImageURL = user.ImageURL
+	account.Gender = user.Gender
 	return account
 }
 func FromContext(ctx context.Context, key string) string {
@@ -362,13 +344,13 @@ func UserAccountToPayload(ctx context.Context, u *UserAccount, s PayloadConfig) 
 	if s.Username != "" {
 		payload[s.Username] = u.Username
 	}
-	if s.Contact != "" && len(u.Contact) > 0 {
+	if s.Contact != "" && u.Contact != nil {
 		payload[s.Contact] = u.Contact
-		u.Contact = ""
+		u.Contact = nil
 	}
-	if s.UserType != "" && len(u.Type) > 0 {
+	if s.UserType != "" && u.Type != nil{
 		payload[s.UserType] = u.Type
-		u.Type = ""
+		u.Type = nil
 	}
 	if s.Roles != "" && u.Roles != nil && len(u.Roles) > 0 {
 		payload[s.Roles] = u.Roles
@@ -393,21 +375,21 @@ func ToPayload(ctx context.Context, user *UserInfo, s PayloadConfig) map[string]
 	if len(s.Username) > 0 && len(user.Username) > 0 {
 		payload[s.Username] = user.Username
 	}
-	if len(s.Contact) > 0 && len(user.Contact) > 0 {
+	if len(s.Contact) > 0 && user.Contact != nil {
 		payload[s.Contact] = user.Contact
-		user.Contact = ""
+		user.Contact = nil
 	}
-	if len(s.Email) > 0 && len(user.Email) > 0 {
+	if len(s.Email) > 0 && user.Email != nil {
 		payload[s.Email] = user.Email
-		user.Email = ""
+		user.Email = nil
 	}
-	if len(s.Phone) > 0 && len(user.Phone) > 0 {
+	if len(s.Phone) > 0 && user.Phone != nil {
 		payload[s.Phone] = user.Phone
-		user.Phone = ""
+		user.Phone = nil
 	}
-	if len(s.UserType) > 0 && len(user.UserType) > 0 {
+	if len(s.UserType) > 0 && user.UserType != nil {
 		payload[s.UserType] = user.UserType
-		user.UserType = ""
+		user.UserType = nil
 	}
 	if len(s.Roles) > 0 && user.Roles != nil && len(user.Roles) > 0 {
 		payload[s.Roles] = user.Roles

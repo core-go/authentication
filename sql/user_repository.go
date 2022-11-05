@@ -54,15 +54,17 @@ func (l SqlUserRepository) GetUser(ctx context.Context, auth a.AuthInfo) (*a.Use
 	}
 	if len(models) > 0 {
 		c := models[0]
-		if len(c.Status) > 0 {
-			if c.Status == l.Status.Deactivated {
+		sts := c.Status
+		st := l.Status
+		if sts != nil && len(*sts) > 0 {
+			if c.Status == &st.Deactivated {
 				b := true
 				c.Deactivated = &b
 			}
-			if c.Status == l.Status.Suspended {
+			if c.Status == &st.Suspended {
 				c.Suspended = true
 			}
-			if c.Status == l.Status.Disable {
+			if c.Status == &st.Disable {
 				c.Disable = true
 			}
 		}
@@ -96,7 +98,7 @@ func (l SqlUserRepository) Pass(ctx context.Context, id string, deactivated *boo
 	if len(l.Conf.LockedUntilTime) > 0 {
 		cols = append(cols, fmt.Sprintf("%s=null", l.Conf.LockedUntilTime))
 	}
-	if len(l.Conf.Status) == 0 || len(l.Status.Activated) == 0 || deactivated != nil || *deactivated == false {
+	if len(l.Conf.Status) == 0 || len(l.Status.Activated) == 0 || (deactivated != nil && *deactivated == false) {
 		if len(cols) == 0 {
 			return nil
 		}
