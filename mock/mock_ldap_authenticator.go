@@ -50,8 +50,9 @@ func (s *MockLDAPAuthenticator) Authenticate(ctx context.Context, info auth.Auth
 			result.Status = s.Status.Success
 			account := auth.UserAccount{}
 			account.Id = username
-			account.DisplayName = username
-			account.Contact = "admin@gmail.com"
+			account.DisplayName = &username
+			em := "admin@gmail.com"
+			account.Contact = &em
 			result.User = &account
 			return result, nil
 		}
