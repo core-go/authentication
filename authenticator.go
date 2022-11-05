@@ -15,6 +15,8 @@ type Authenticator struct {
 	Check              func(ctx context.Context, user AuthInfo) (AuthResult, error)
 	PasswordComparator ValueComparator
 	Privileges         func(ctx context.Context, id string) ([]Privilege, error)
+	LockedMinutes      int
+	MaxPasswordFailed  int
 	GenerateToken      func(payload interface{}, secret string, expiresIn int64) (string, error)
 	TokenConfig        TokenConfig
 	CodeExpires        int64
@@ -23,14 +25,14 @@ type Authenticator struct {
 	GenerateCode       func() string
 }
 
-func NewBasicAuthenticator(status Status, check func(context.Context, AuthInfo) (AuthResult, error), userInfoService UserRepository, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, options ...func(context.Context, string) ([]Privilege, error)) *Authenticator {
+func NewBasicAuthenticator(status Status, check func(context.Context, AuthInfo) (AuthResult, error), userInfoService UserRepository, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, lockedMinutes int, maxPasswordFailed int, options ...func(context.Context, string) ([]Privilege, error)) *Authenticator {
 	var loadPrivileges func(context.Context, string) ([]Privilege, error)
 	if len(options) >= 1 {
 		loadPrivileges = options[0]
 	}
-	return NewBasicAuthenticatorWithTwoFactors(status, check, userInfoService, generateToken, tokenConfig, payloadConfig, loadPrivileges, nil, nil, 0)
+	return NewBasicAuthenticatorWithTwoFactors(status, check, userInfoService, generateToken, tokenConfig, payloadConfig, loadPrivileges, lockedMinutes, maxPasswordFailed, nil, nil, 0)
 }
-func NewBasicAuthenticatorWithTwoFactors(status Status, check func(context.Context, AuthInfo) (AuthResult, error), userInfoService UserRepository, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, loadPrivileges func(context.Context, string) ([]Privilege, error), sendCode func(context.Context, string, string, time.Time, interface{}) error, codeService CodeRepository, codeExpires int64, options ...func() string) *Authenticator {
+func NewBasicAuthenticatorWithTwoFactors(status Status, check func(context.Context, AuthInfo) (AuthResult, error), userInfoService UserRepository, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, loadPrivileges func(context.Context, string) ([]Privilege, error), lockedMinutes int, maxPasswordFailed int, sendCode func(context.Context, string, string, time.Time, interface{}) error, codeService CodeRepository, codeExpires int64, options ...func() string) *Authenticator {
 	if check == nil {
 		panic(errors.New("basic check cannot be nil"))
 	}
@@ -53,6 +55,8 @@ func NewBasicAuthenticatorWithTwoFactors(status Status, check func(context.Conte
 		CodeRepository: codeService,
 		SendCode:       sendCode,
 		GenerateCode:   generate,
+		LockedMinutes:  lockedMinutes,
+		MaxPasswordFailed: maxPasswordFailed,
 	}
 	return service
 }
@@ -135,7 +139,7 @@ func (s *Authenticator) Authenticate(ctx context.Context, info AuthInfo) (AuthRe
 		}
 	}
 
-	user, er1 := s.Repository.GetUserInfo(ctx, info)
+	user, er1 := s.Repository.GetUser(ctx, info)
 	if er1 != nil {
 		return result, er1
 	}
@@ -150,7 +154,12 @@ func (s *Authenticator) Authenticate(ctx context.Context, info AuthInfo) (AuthRe
 			return result, er2
 		}
 		if !validPassword {
-			er3 := s.Repository.Fail(ctx, *user)
+			var lockUntilTime *time.Time
+			if s.LockedMinutes > 0 && s.MaxPasswordFailed > 0 && user.FailCount != nil && *user.FailCount >= s.MaxPasswordFailed {
+				l := time.Now().Add(time.Minute * time.Duration(s.LockedMinutes))
+				lockUntilTime = &l
+			}
+			er3 := s.Repository.Fail(ctx, user.Id, user.FailCount, lockUntilTime)
 			if er3 != nil {
 				return result, er3
 			}
@@ -177,8 +186,9 @@ func (s *Authenticator) Authenticate(ctx context.Context, info AuthInfo) (AuthRe
 	}
 
 	var passwordExpiredTime *time.Time = nil // date.addDays(time.Now(), 10)
-	if user.PasswordChangedTime != nil && user.MaxPasswordAge != 0 {
-		t := addDays(*user.PasswordChangedTime, user.MaxPasswordAge)
+	mpa := user.MaxPasswordAge
+	if user.PasswordChangedTime != nil && mpa != nil && *mpa != 0 {
+		t := addDays(*user.PasswordChangedTime, *mpa)
 		passwordExpiredTime = &t
 	}
 	if passwordExpiredTime != nil && compareDate(time.Now(), *passwordExpiredTime) > 0 {
@@ -245,7 +255,8 @@ func (s *Authenticator) Authenticate(ctx context.Context, info AuthInfo) (AuthRe
 	if er4 != nil {
 		return result, er4
 	}
-	if user.Deactivated == true {
+	de := user.Deactivated
+	if de != nil && *de == true {
 		result.Status = s.Status.SuccessAndReactivated
 	} else {
 		result.Status = s.Status.Success
@@ -264,7 +275,7 @@ func (s *Authenticator) Authenticate(ctx context.Context, info AuthInfo) (AuthRe
 		}
 	}
 	result.User = &account
-	er6 := s.Repository.Pass(ctx, *user)
+	er6 := s.Repository.Pass(ctx, user.Id, user.Deactivated)
 	if er6 != nil {
 		return result, er6
 	}

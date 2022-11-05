@@ -16,19 +16,25 @@ type SqlConfig struct {
 	SuspendedStatus string `yaml:"suspended" mapstructure:"suspended" json:"suspended,omitempty" gorm:"column:suspended" bson:"suspended,omitempty" dynamodbav:"suspended,omitempty" firestore:"suspended,omitempty"`
 	NoTime          bool   `yaml:"no_time" mapstructure:"no_time" json:"noTime,omitempty" gorm:"column:notime" bson:"noTime,omitempty" dynamodbav:"noTime,omitempty" firestore:"noTime,omitempty"`
 }
-type UserInfoService struct {
+type SqlUserRepository struct {
 	DB              *sql.DB
 	Query           string
 	SqlPass         string
 	SqlFail         string
-	DisableStatus   string
-	SuspendedStatus string
+	Status          a.UserStatusConfig
+	MaxPasswordAge  int32
 	NoTime          bool
 	Driver          string
 	userFields      map[string]int
+	Param           func(int) string
+	Id              string
+	Password        string
+	FailTime        string
+	FailCount       string
+	LockedUntilTime string
 }
 
-func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus string, suspendedStatus string, noTime bool, options ...bool) (*UserInfoService, error) {
+func NewSqlUserRepository(db *sql.DB, query, sqlPass, sqlFail, disableStatus string, suspendedStatus string, noTime bool, maxPasswordAge int32, options ...bool) (*SqlUserRepository, error) {
 	var handleDriver bool
 	if len(options) >= 1 {
 		handleDriver = options[0]
@@ -36,9 +42,11 @@ func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus st
 		handleDriver = true
 	}
 	driver := getDriver(db)
+	var param func(int) string
 	if handleDriver {
 		query = replaceQueryArgs(driver, query)
 		sqlPass = replaceQueryArgs(driver, sqlPass)
+		param = GetBuildByDriver(driver)
 	}
 	var user a.UserInfo
 	userType := reflect.TypeOf(user)
@@ -46,13 +54,13 @@ func NewSqlUserInfoService(db *sql.DB, query, sqlPass, sqlFail, disableStatus st
 	if err != nil {
 		return nil, err
 	}
-	return &UserInfoService{DB: db, Query: query, SqlPass: sqlPass, SqlFail: sqlFail, DisableStatus: disableStatus, SuspendedStatus: suspendedStatus, NoTime: noTime, Driver: driver, userFields: userFields}, nil
+	return &SqlUserRepository{DB: db, Query: query, SqlPass: sqlPass, SqlFail: sqlFail, DisableStatus: disableStatus, SuspendedStatus: suspendedStatus, NoTime: noTime, MaxPasswordAge: maxPasswordAge, Driver: driver, userFields: userFields, Param: param}, nil
 }
 
-func NewSqlUserInfoByConfig(db *sql.DB, c SqlConfig, options ...bool) (*UserInfoService, error) {
-	return NewSqlUserInfoService(db, c.Query, c.SqlPass, c.SqlFail, c.DisableStatus, c.SuspendedStatus, c.NoTime, options...)
+func NewSqlUserInfoByConfig(db *sql.DB, c SqlConfig, options ...bool) (*SqlUserRepository, error) {
+	return NewSqlUserRepository(db, c.Query, c.SqlPass, c.SqlFail, c.DisableStatus, c.SuspendedStatus, c.NoTime, 0, options...)
 }
-func (l UserInfoService) GetUserInfo(ctx context.Context, auth a.AuthInfo) (*a.UserInfo, error) {
+func (l SqlUserRepository) GetUser(ctx context.Context, auth a.AuthInfo) (*a.UserInfo, error) {
 	var models []a.UserInfo
 	_, err := queryWithMap(ctx, l.DB, l.userFields, &models, l.Query, auth.Username)
 	if err != nil {
@@ -61,10 +69,14 @@ func (l UserInfoService) GetUserInfo(ctx context.Context, auth a.AuthInfo) (*a.U
 	if len(models) > 0 {
 		c := models[0]
 		if len(c.Status) > 0 {
-			if c.Status == l.SuspendedStatus {
+			if c.Status == l.Status.Deactivated {
+				b := true
+				c.Deactivated = &b
+			}
+			if c.Status == l.Status.Suspended {
 				c.Suspended = true
 			}
-			if c.Status == l.DisableStatus {
+			if c.Status == l.Status.Disable {
 				c.Disable = true
 			}
 		}
@@ -72,7 +84,7 @@ func (l UserInfoService) GetUserInfo(ctx context.Context, auth a.AuthInfo) (*a.U
 	}
 	return nil, nil
 }
-func (l UserInfoService) Pass(ctx context.Context, user a.UserInfo) error {
+func (l SqlUserRepository) Pass(ctx context.Context, user a.UserInfo) error {
 	if len(l.SqlPass) == 0 {
 		return nil
 	}
@@ -84,7 +96,10 @@ func (l UserInfoService) Pass(ctx context.Context, user a.UserInfo) error {
 		return err
 	}
 }
-func (l UserInfoService) Fail(ctx context.Context, user a.UserInfo) error {
+func (l SqlUserRepository) Fail(ctx context.Context, id, failCount *int, lockedUntilTime *time.Time) error {
+	if failCount == nil && lockedUntilTime == nil {
+		return nil
+	}
 	if len(l.SqlFail) == 0 {
 		return nil
 	}

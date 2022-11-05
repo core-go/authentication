@@ -1,9 +1,12 @@
 package auth
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 type UserRepository interface {
-	GetUserInfo(ctx context.Context, auth AuthInfo) (*UserInfo, error)
-	Pass(ctx context.Context, user UserInfo) error
-	Fail(ctx context.Context, user UserInfo) error
+	GetUser(ctx context.Context, auth AuthInfo) (*UserInfo, error)
+	Pass(ctx context.Context, id string, deactivated *bool) error
+	Fail(ctx context.Context, id string, failCount *int, lockedUntilTime *time.Time) error
 }

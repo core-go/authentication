@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -248,7 +249,18 @@ func swapValuesToBool(s interface{}, swap *map[int]interface{}) {
 		}
 	}
 }
-
+func GetBuildByDriver(driver string) func(i int) string {
+	switch driver {
+	case driverPostgres:
+		return BuildDollarParam
+	case driverOracle:
+		return BuildOracleParam
+	case driverMssql:
+		return BuildMsSqlParam
+	default:
+		return BuildParam
+	}
+}
 func getDriver(db *sql.DB) string {
 	if db == nil {
 		return driverNotSupport
@@ -293,4 +305,16 @@ func replaceQueryArgs(driver string, query string) string {
 		}
 	}
 	return query
+}
+func BuildParam(i int) string {
+	return "?"
+}
+func BuildOracleParam(i int) string {
+	return ":" + strconv.Itoa(i)
+}
+func BuildMsSqlParam(i int) string {
+	return "@p" + strconv.Itoa(i)
+}
+func BuildDollarParam(i int) string {
+	return "$" + strconv.Itoa(i)
 }
