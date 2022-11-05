@@ -11,7 +11,7 @@ import (
 type Authenticator struct {
 	Status             Status
 	PayloadConfig      PayloadConfig
-	Repository         UserInfoService
+	Repository         UserRepository
 	Check              func(ctx context.Context, user AuthInfo) (AuthResult, error)
 	PasswordComparator ValueComparator
 	Privileges         func(ctx context.Context, id string) ([]Privilege, error)
@@ -23,14 +23,14 @@ type Authenticator struct {
 	GenerateCode       func() string
 }
 
-func NewBasicAuthenticator(status Status, check func(context.Context, AuthInfo) (AuthResult, error), userInfoService UserInfoService, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, options ...func(context.Context, string) ([]Privilege, error)) *Authenticator {
+func NewBasicAuthenticator(status Status, check func(context.Context, AuthInfo) (AuthResult, error), userInfoService UserRepository, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, options ...func(context.Context, string) ([]Privilege, error)) *Authenticator {
 	var loadPrivileges func(context.Context, string) ([]Privilege, error)
 	if len(options) >= 1 {
 		loadPrivileges = options[0]
 	}
 	return NewBasicAuthenticatorWithTwoFactors(status, check, userInfoService, generateToken, tokenConfig, payloadConfig, loadPrivileges, nil, nil, 0)
 }
-func NewBasicAuthenticatorWithTwoFactors(status Status, check func(context.Context, AuthInfo) (AuthResult, error), userInfoService UserInfoService, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, loadPrivileges func(context.Context, string) ([]Privilege, error), sendCode func(context.Context, string, string, time.Time, interface{}) error, codeService CodeRepository, codeExpires int64, options ...func() string) *Authenticator {
+func NewBasicAuthenticatorWithTwoFactors(status Status, check func(context.Context, AuthInfo) (AuthResult, error), userInfoService UserRepository, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, loadPrivileges func(context.Context, string) ([]Privilege, error), sendCode func(context.Context, string, string, time.Time, interface{}) error, codeService CodeRepository, codeExpires int64, options ...func() string) *Authenticator {
 	if check == nil {
 		panic(errors.New("basic check cannot be nil"))
 	}
@@ -56,14 +56,14 @@ func NewBasicAuthenticatorWithTwoFactors(status Status, check func(context.Conte
 	}
 	return service
 }
-func NewAuthenticator(status Status, userInfoService UserInfoService, passwordComparator ValueComparator, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, options ...func(context.Context, string) ([]Privilege, error)) *Authenticator {
+func NewAuthenticator(status Status, userInfoService UserRepository, passwordComparator ValueComparator, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, options ...func(context.Context, string) ([]Privilege, error)) *Authenticator {
 	var loadPrivileges func(context.Context, string) ([]Privilege, error)
 	if len(options) >= 1 {
 		loadPrivileges = options[0]
 	}
 	return NewAuthenticatorWithTwoFactors(status, userInfoService, passwordComparator, generateToken, tokenConfig, payloadConfig, loadPrivileges, nil, nil, 0, nil)
 }
-func NewAuthenticatorWithTwoFactors(status Status, userInfoService UserInfoService, passwordComparator ValueComparator, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, loadPrivileges func(context.Context, string) ([]Privilege, error), sendCode func(context.Context, string, string, time.Time, interface{}) error, codeService CodeRepository, codeExpires int64, options ...func() string) *Authenticator {
+func NewAuthenticatorWithTwoFactors(status Status, userInfoService UserRepository, passwordComparator ValueComparator, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, loadPrivileges func(context.Context, string) ([]Privilege, error), sendCode func(context.Context, string, string, time.Time, interface{}) error, codeService CodeRepository, codeExpires int64, options ...func() string) *Authenticator {
 	if passwordComparator == nil {
 		panic(errors.New("password comparator cannot be nil"))
 	}
@@ -169,13 +169,13 @@ func (s *Authenticator) Authenticate(ctx context.Context, info AuthInfo) (AuthRe
 		result.Status = s.Status.Suspended
 		return result, nil
 	}
-/*
+
 	locked := user.LockedUntilTime != nil && (compareDate(time.Now(), *user.LockedUntilTime) < 0)
 	if locked {
 		result.Status = s.Status.Locked
 		return result, nil
 	}
-*/
+
 	var passwordExpiredTime *time.Time = nil // date.addDays(time.Now(), 10)
 	if user.PasswordChangedTime != nil && user.MaxPasswordAge != 0 {
 		t := addDays(*user.PasswordChangedTime, user.MaxPasswordAge)
