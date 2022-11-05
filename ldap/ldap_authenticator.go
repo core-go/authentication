@@ -140,16 +140,20 @@ func (s *LDAPAuthenticator) Authenticate(ctx context.Context, info auth.AuthInfo
 				account.Id = entry.GetAttributeValue(s.Config.Id)
 			}
 			if len(s.Config.DisplayName) > 0 {
-				account.DisplayName = entry.GetAttributeValue(s.Config.DisplayName)
+				v := entry.GetAttributeValue(s.Config.DisplayName)
+				account.DisplayName = &v
 			}
 			if len(s.Config.Contact) > 0 {
-				account.Contact = entry.GetAttributeValue(s.Config.Contact)
+				v := entry.GetAttributeValue(s.Config.Contact)
+				account.Contact = &v
 			}
 			if len(s.Config.Email) > 0 {
-				account.Email = entry.GetAttributeValue(s.Config.Email)
+				v := entry.GetAttributeValue(s.Config.Email)
+				account.Email = &v
 			}
 			if len(s.Config.Phone) > 0 {
-				account.Phone = entry.GetAttributeValue(s.Config.Phone)
+				v := entry.GetAttributeValue(s.Config.Phone)
+				account.Phone = &v
 			}
 		}
 		result.User = &account
