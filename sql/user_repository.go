@@ -19,10 +19,10 @@ type SqlUserRepository struct {
 	Driver         string
 	userFields     map[string]int
 	Param          func(int) string
-	Conf           a.DBConfig
+	Conf           DBConfig
 }
 
-func NewUserRepository(db *sql.DB, query string, conf a.DBConfig, status a.UserStatusConfig, options ...bool) (*SqlUserRepository, error) {
+func NewUserRepository(db *sql.DB, query string, conf DBConfig, status a.UserStatusConfig, options ...bool) (*SqlUserRepository, error) {
 	var handleDriver bool
 	if len(options) >= 1 {
 		handleDriver = options[0]
