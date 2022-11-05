@@ -22,12 +22,15 @@ type SqlUserRepository struct {
 	Conf           a.DBConfig
 }
 
-func NewSqlUserRepository(db *sql.DB, conf a.DBConfig, query string, status a.UserStatusConfig, options ...bool) (*SqlUserRepository, error) {
+func NewUserRepository(db *sql.DB, query string, conf a.DBConfig, status a.UserStatusConfig, options ...bool) (*SqlUserRepository, error) {
 	var handleDriver bool
 	if len(options) >= 1 {
 		handleDriver = options[0]
 	} else {
 		handleDriver = true
+	}
+	if len(conf.Password) == 0 {
+		conf.Password = conf.User
 	}
 	driver := getDriver(db)
 	var param func(int) string
@@ -63,11 +66,18 @@ func (l SqlUserRepository) GetUser(ctx context.Context, auth a.AuthInfo) (*a.Use
 				c.Disable = true
 			}
 		}
+		mpa := l.MaxPasswordAge
+		if mpa > 0 && c.MaxPasswordAge == nil {
+			c.MaxPasswordAge = &mpa
+		}
 		return &c, nil
 	}
 	return nil, nil
 }
 func (l SqlUserRepository) Pass(ctx context.Context, id string, deactivated *bool) error {
+	if len(l.Conf.User) == 0 && len(l.Conf.Password) == 0 {
+		return nil
+	}
 	now := time.Now()
 	i := 1
 	cols := make([]string, 0)
@@ -87,6 +97,9 @@ func (l SqlUserRepository) Pass(ctx context.Context, id string, deactivated *boo
 		cols = append(cols, fmt.Sprintf("%s=null", l.Conf.LockedUntilTime))
 	}
 	if len(l.Conf.Status) == 0 || len(l.Status.Activated) == 0 || deactivated != nil || *deactivated == false {
+		if len(cols) == 0 {
+			return nil
+		}
 		params = append(params, id)
 		sql := fmt.Sprintf(`update %s set %s where %s = %s`, l.Conf.Password, strings.Join(cols, ","), l.Conf.Id, l.Param(i))
 		_, err := l.DB.ExecContext(ctx, sql, params...)
@@ -104,10 +117,6 @@ func (l SqlUserRepository) Pass(ctx context.Context, id string, deactivated *boo
 	}
 
 	sqlU := fmt.Sprintf(`update %s set %s = %s where %s = %s`, l.Conf.User, l.Conf.Status, l.Param(1), l.Conf.Id, l.Param(2))
-
-	params = append(params, id)
-	sql := fmt.Sprintf(`update %s set %s where %s = %s`, l.Conf.Password, strings.Join(cols, ","), l.Conf.Id, l.Param(i))
-
 	tx, err := l.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -117,14 +126,21 @@ func (l SqlUserRepository) Pass(ctx context.Context, id string, deactivated *boo
 		tx.Rollback()
 		return err
 	}
-	_, err = tx.ExecContext(ctx, sql, params...)
-	if err != nil {
-		tx.Rollback()
-		return err
+	if len(cols) > 0 {
+		params = append(params, id)
+		sql := fmt.Sprintf(`update %s set %s where %s = %s`, l.Conf.Password, strings.Join(cols, ","), l.Conf.Id, l.Param(i))
+		_, err = tx.ExecContext(ctx, sql, params...)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
 	}
 	return tx.Commit()
 }
 func (l SqlUserRepository) Fail(ctx context.Context, id string, failCount *int, lockedUntilTime *time.Time) error {
+	if len(l.Conf.User) == 0 && len(l.Conf.Password) == 0 {
+		return nil
+	}
 	now := time.Now()
 	i := 1
 	cols := make([]string, 0)
@@ -142,6 +158,9 @@ func (l SqlUserRepository) Fail(ctx context.Context, id string, failCount *int, 
 		cols = append(cols, fmt.Sprintf("%s=%s", l.Conf.FailCount, l.Param(i)))
 		params = append(params, lockedUntilTime)
 		i = i + 1
+	}
+	if len(cols) == 0 {
+		return nil
 	}
 	params = append(params, id)
 	sql := fmt.Sprintf(`update %s set %s where %s = %s`, l.Conf.Password, strings.Join(cols, ","), l.Conf.Id, l.Param(i))
