@@ -3,38 +3,26 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	a "github.com/core-go/auth"
 	"reflect"
+	"strings"
 	"time"
 )
 
-type SqlConfig struct {
-	Query           string `yaml:"query" mapstructure:"query" json:"query,omitempty" gorm:"column:query" bson:"query,omitempty" dynamodbav:"query,omitempty" firestore:"query,omitempty"`
-	SqlPass         string `yaml:"pass" mapstructure:"pass" json:"pass,omitempty" gorm:"column:pass" bson:"pass,omitempty" dynamodbav:"pass,omitempty" firestore:"pass,omitempty"`
-	SqlFail         string `yaml:"fail" mapstructure:"fail" json:"fail,omitempty" gorm:"column:fail" bson:"fail,omitempty" dynamodbav:"fail,omitempty" firestore:"fail,omitempty"`
-	DisableStatus   string `yaml:"disable" mapstructure:"disable" json:"disable,omitempty" gorm:"column:disable" bson:"disable,omitempty" dynamodbav:"disable,omitempty" firestore:"disable,omitempty"`
-	SuspendedStatus string `yaml:"suspended" mapstructure:"suspended" json:"suspended,omitempty" gorm:"column:suspended" bson:"suspended,omitempty" dynamodbav:"suspended,omitempty" firestore:"suspended,omitempty"`
-	NoTime          bool   `yaml:"no_time" mapstructure:"no_time" json:"noTime,omitempty" gorm:"column:notime" bson:"noTime,omitempty" dynamodbav:"noTime,omitempty" firestore:"noTime,omitempty"`
-}
 type SqlUserRepository struct {
-	DB              *sql.DB
-	Query           string
-	SqlPass         string
-	SqlFail         string
-	Status          a.UserStatusConfig
-	MaxPasswordAge  int32
-	NoTime          bool
-	Driver          string
-	userFields      map[string]int
-	Param           func(int) string
-	Id              string
-	Password        string
-	FailTime        string
-	FailCount       string
-	LockedUntilTime string
+	DB             *sql.DB
+	Query          string
+	Status         a.UserStatusConfig
+	MaxPasswordAge int32
+	NoTime         bool
+	Driver         string
+	userFields     map[string]int
+	Param          func(int) string
+	Conf           a.DBConfig
 }
 
-func NewSqlUserRepository(db *sql.DB, query, sqlPass, sqlFail, disableStatus string, suspendedStatus string, noTime bool, maxPasswordAge int32, options ...bool) (*SqlUserRepository, error) {
+func NewSqlUserRepository(db *sql.DB, conf a.DBConfig, query string, status a.UserStatusConfig, options ...bool) (*SqlUserRepository, error) {
 	var handleDriver bool
 	if len(options) >= 1 {
 		handleDriver = options[0]
@@ -45,7 +33,6 @@ func NewSqlUserRepository(db *sql.DB, query, sqlPass, sqlFail, disableStatus str
 	var param func(int) string
 	if handleDriver {
 		query = replaceQueryArgs(driver, query)
-		sqlPass = replaceQueryArgs(driver, sqlPass)
 		param = GetBuildByDriver(driver)
 	}
 	var user a.UserInfo
@@ -54,11 +41,7 @@ func NewSqlUserRepository(db *sql.DB, query, sqlPass, sqlFail, disableStatus str
 	if err != nil {
 		return nil, err
 	}
-	return &SqlUserRepository{DB: db, Query: query, SqlPass: sqlPass, SqlFail: sqlFail, DisableStatus: disableStatus, SuspendedStatus: suspendedStatus, NoTime: noTime, MaxPasswordAge: maxPasswordAge, Driver: driver, userFields: userFields, Param: param}, nil
-}
-
-func NewSqlUserInfoByConfig(db *sql.DB, c SqlConfig, options ...bool) (*SqlUserRepository, error) {
-	return NewSqlUserRepository(db, c.Query, c.SqlPass, c.SqlFail, c.DisableStatus, c.SuspendedStatus, c.NoTime, 0, options...)
+	return &SqlUserRepository{DB: db, Query: query, Driver: driver, userFields: userFields, Param: param, Conf: conf, Status:  status}, nil
 }
 func (l SqlUserRepository) GetUser(ctx context.Context, auth a.AuthInfo) (*a.UserInfo, error) {
 	var models []a.UserInfo
@@ -84,30 +67,84 @@ func (l SqlUserRepository) GetUser(ctx context.Context, auth a.AuthInfo) (*a.Use
 	}
 	return nil, nil
 }
-func (l SqlUserRepository) Pass(ctx context.Context, user a.UserInfo) error {
-	if len(l.SqlPass) == 0 {
-		return nil
+func (l SqlUserRepository) Pass(ctx context.Context, id string, deactivated *bool) error {
+	now := time.Now()
+	i := 1
+	cols := make([]string, 0)
+	params := make([]interface{}, 0)
+	if len(l.Conf.SuccessTime) > 0 {
+		cols = append(cols, fmt.Sprintf("%s=%s", l.Conf.SuccessTime, l.Param(i)))
+		params = append(params, now)
+		i = i + 1
 	}
-	if l.NoTime {
-		_, err := l.DB.ExecContext(ctx, l.SqlPass, user.Id)
-		return err
-	} else {
-		_, err := l.DB.ExecContext(ctx, l.SqlPass, time.Now(), user.Id)
+	if len(l.Conf.FailTime) > 0 {
+		cols = append(cols, fmt.Sprintf("%s=null", l.Conf.FailTime))
+	}
+	if len(l.Conf.FailCount) > 0 {
+		cols = append(cols, fmt.Sprintf("%s=0", l.Conf.FailCount))
+	}
+	if len(l.Conf.LockedUntilTime) > 0 {
+		cols = append(cols, fmt.Sprintf("%s=null", l.Conf.LockedUntilTime))
+	}
+	if len(l.Conf.Status) == 0 || len(l.Status.Activated) == 0 || deactivated != nil || *deactivated == false {
+		params = append(params, id)
+		sql := fmt.Sprintf(`update %s set %s where %s = %s`, l.Conf.Password, strings.Join(cols, ","), l.Conf.Id, l.Param(i))
+		_, err := l.DB.ExecContext(ctx, sql, params...)
 		return err
 	}
+	if l.Conf.User == l.Conf.Password {
+		cols = append(cols, fmt.Sprintf("%s=%s", l.Conf.Status, l.Param(i)))
+		params = append(params, l.Status.Activated)
+		i = i + 1
+
+		params = append(params, id)
+		sql := fmt.Sprintf(`update %s set %s where %s = %s`, l.Conf.Password, strings.Join(cols, ","), l.Conf.Id, l.Param(i))
+		_, err := l.DB.ExecContext(ctx, sql, params...)
+		return err
+	}
+
+	sqlU := fmt.Sprintf(`update %s set %s = %s where %s = %s`, l.Conf.User, l.Conf.Status, l.Param(1), l.Conf.Id, l.Param(2))
+
+	params = append(params, id)
+	sql := fmt.Sprintf(`update %s set %s where %s = %s`, l.Conf.Password, strings.Join(cols, ","), l.Conf.Id, l.Param(i))
+
+	tx, err := l.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, sqlU, l.Status.Activated, id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	_, err = tx.ExecContext(ctx, sql, params...)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit()
 }
-func (l SqlUserRepository) Fail(ctx context.Context, id, failCount *int, lockedUntilTime *time.Time) error {
-	if failCount == nil && lockedUntilTime == nil {
-		return nil
+func (l SqlUserRepository) Fail(ctx context.Context, id string, failCount *int, lockedUntilTime *time.Time) error {
+	now := time.Now()
+	i := 1
+	cols := make([]string, 0)
+	params := make([]interface{}, 0)
+	if len(l.Conf.FailTime) > 0 {
+		cols = append(cols, fmt.Sprintf("%s=%s", l.Conf.FailTime, l.Param(i)))
+		params = append(params, now)
+		i = i + 1
 	}
-	if len(l.SqlFail) == 0 {
-		return nil
+	if len(l.Conf.FailCount) > 0 && failCount != nil {
+		count := *failCount + 1
+		cols = append(cols, fmt.Sprintf("%s=%d", l.Conf.FailCount, count))
 	}
-	if l.NoTime {
-		_, err := l.DB.ExecContext(ctx, l.SqlFail, user.Id)
-		return err
-	} else {
-		_, err := l.DB.ExecContext(ctx, l.SqlFail, time.Now(), user.Id)
-		return err
+	if len(l.Conf.LockedUntilTime) > 0 && lockedUntilTime != nil {
+		cols = append(cols, fmt.Sprintf("%s=%s", l.Conf.FailCount, l.Param(i)))
+		params = append(params, lockedUntilTime)
+		i = i + 1
 	}
+	params = append(params, id)
+	sql := fmt.Sprintf(`update %s set %s where %s = %s`, l.Conf.Password, strings.Join(cols, ","), l.Conf.Id, l.Param(i))
+	_, err := l.DB.ExecContext(ctx, sql, params...)
+	return err
 }
