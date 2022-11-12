@@ -10,6 +10,7 @@ type Module struct {
 	Icon        *string `yaml:"icon" mapstructure:"icon" json:"icon,omitempty" gorm:"column:icon" bson:"icon,omitempty" dynamodbav:"icon,omitempty" firestore:"icon,omitempty" sql:"icon"`
 	Parent      *string `yaml:"parent" mapstructure:"parent" json:"parent" gorm:"column:parent" bson:"parent" dynamodbav:"parent,omitempty" firestore:"parent,omitempty" sql:"parent"`
 	Sequence    int     `yaml:"sequence" mapstructure:"sequence" json:"sequence" gorm:"column:sequence" bson:"sequence" dynamodbav:"sequence,omitempty" firestore:"sequence,omitempty" sql:"sequence"`
+	Actions     int32   `yaml:"actions" mapstructure:"actions" json:"actions" gorm:"column:actions" bson:"actions" dynamodbav:"actions,omitempty" firestore:"actions,omitempty" sql:"actions"`
 	Permissions int32   `yaml:"permissions" mapstructure:"permissions" json:"permissions" gorm:"column:permissions" bson:"permissions" dynamodbav:"permissions,omitempty" firestore:"permissions,omitempty" sql:"permissions"`
 }
 
@@ -52,6 +53,7 @@ func ToPrivileges(modules []Module) []Privilege {
 			Id:          v.Id,
 			Name:        v.Name,
 			Sequence:    v.Sequence,
+			Actions:     v.Actions,
 			Permissions: v.Permissions,
 		}
 		if v.Resource != nil {
