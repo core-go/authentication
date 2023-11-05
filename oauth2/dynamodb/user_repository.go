@@ -20,15 +20,7 @@ type UserRepository struct {
 	Prefix          string
 	ActivatedStatus string
 	Services        []string
-	StatusName      string
-	UserName        string
-	EmailName       string
-	OAuth2EmailName string
-	AccountName     string
-	ActiveName      string
 
-	updatedTimeName string
-	updatedByName   string
 	Status          *auth.UserStatusConfig
 	GenderMapper    oauth2.OAuth2GenderMapper
 	Schema          *oauth2.OAuth2SchemaConfig
@@ -39,8 +31,8 @@ func NewUserRepositoryByConfig(db *dynamodb.DynamoDB, userTableName, prefix stri
 	if len(options) >= 1 {
 		genderMapper = options[0]
 	}
-	if len(c.UserName) == 0 {
-		c.UserName = "userName"
+	if len(c.Username) == 0 {
+		c.Username = "username"
 	}
 	if len(c.Email) == 0 {
 		c.Email = "email"
@@ -67,15 +59,6 @@ func NewUserRepositoryByConfig(db *dynamodb.DynamoDB, userTableName, prefix stri
 		GenderMapper:    genderMapper,
 		Status:          status,
 		Schema:          &c,
-		updatedTimeName: c.UpdatedTime,
-		updatedByName:   c.UpdatedBy,
-
-		StatusName:      c.Status,
-		UserName:        c.UserName,
-		EmailName:       c.Email,
-		OAuth2EmailName: c.Email,
-		AccountName:     c.Account,
-		ActiveName:      c.Active,
 	}
 	return m
 }
@@ -91,13 +74,7 @@ func NewUserRepository(db *dynamodb.DynamoDB, userTableName, prefix, activatedSt
 		UserTableName:   userTableName,
 		Prefix:          prefix,
 		ActivatedStatus: activatedStatus,
-		StatusName:      "status",
 		Services:        services,
-		UserName:        "userName",
-		EmailName:       "email",
-		OAuth2EmailName: "Email",
-		AccountName:     "Account",
-		ActiveName:      "Active",
 		GenderMapper:    genderMapper,
 		Status:          status,
 	}
@@ -156,7 +133,7 @@ func (r *UserRepository) GetUser(ctx context.Context, email string) (string, boo
 
 	userId := result["id"]
 	if r.Status != nil {
-		status := result[r.StatusName]
+		status := result[r.Schema.Status]
 		if status == r.Status.Disable {
 			disable = true
 		}
@@ -175,16 +152,16 @@ func (r *UserRepository) Update(ctx context.Context, id, email, account string) 
 
 	user["id"] = id
 
-	user[r.Prefix+r.OAuth2EmailName] = email
-	user[r.Prefix+r.AccountName] = account
-	user[r.Prefix+r.ActiveName] = true
+	user[r.Prefix+r.Schema.OAuth2Email] = email
+	user[r.Prefix+r.Schema.Account] = account
+	user[r.Prefix+r.Schema.Active] = true
 
-	if len(r.updatedTimeName) > 0 {
-		user[r.updatedTimeName] = time.Now()
+	if len(r.Schema.UpdatedTime) > 0 {
+		user[r.Schema.UpdatedTime] = time.Now()
 	}
 
-	if len(r.updatedByName) > 0 {
-		user[r.updatedByName] = id
+	if len(r.Schema.UpdatedBy) > 0 {
+		user[r.Schema.UpdatedBy] = id
 	}
 
 	result, err:=  dyn.PatchOne(ctx,r.DB,r.UserTableName,[]string{"id"},user)
@@ -211,11 +188,11 @@ func (r *UserRepository) userToMap(ctx context.Context, id string, user oauth2.U
 	userMap := oauth2.UserToMap(ctx, id, user, r.GenderMapper, r.Schema)
 
 	userMap["id"] = id
-	userMap[r.UserName] = user.Email
-	userMap[r.StatusName] = r.ActivatedStatus
+	userMap[r.Schema.Username] = user.Email
+	userMap[r.Schema.Status] = r.ActivatedStatus
 
-	userMap[r.Prefix+r.OAuth2EmailName] = user.Email
-	userMap[r.Prefix+r.AccountName] = user.Account
-	userMap[r.Prefix+r.ActiveName] = true
+	userMap[r.Prefix+r.Schema.OAuth2Email] = user.Email
+	userMap[r.Prefix+r.Schema.Account] = user.Account
+	userMap[r.Prefix+r.Schema.Active] = true
 	return userMap
 }

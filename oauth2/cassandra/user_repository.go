@@ -7,9 +7,8 @@ import (
 	"time"
 
 	"github.com/core-go/auth"
-	"github.com/gocql/gocql"
-
 	"github.com/core-go/auth/oauth2"
+	"github.com/gocql/gocql"
 )
 
 type UserRepository struct {
@@ -18,16 +17,7 @@ type UserRepository struct {
 	Prefix          string
 	ActivatedStatus string
 	Services        []string
-	StatusName      string
-	UserIdName      string
-	UserName        string
-	EmailName       string
-	OAuth2EmailName string
-	AccountName     string
-	ActiveName      string
 
-	updatedTimeName string
-	updatedByName   string
 	Status          *auth.UserStatusConfig
 	GenderMapper    oauth2.OAuth2GenderMapper
 	Schema          *oauth2.OAuth2SchemaConfig
@@ -39,8 +29,8 @@ func NewUserRepositoryByConfig(session *gocql.Session, tableName, prefix string,
 	if len(options) >= 1 {
 		genderMapper = options[0]
 	}
-	c.UserId = strings.ToLower(c.UserId)
-	c.UserName = strings.ToLower(c.UserName)
+	c.Id = strings.ToLower(c.Id)
+	c.Username = strings.ToLower(c.Username)
 	c.Email = strings.ToLower(c.Email)
 	c.Status = strings.ToLower(c.Status)
 	c.OAuth2Email = strings.ToLower(c.OAuth2Email)
@@ -64,8 +54,8 @@ func NewUserRepositoryByConfig(session *gocql.Session, tableName, prefix string,
 		s = append(s, strings.ToLower(sv))
 	}
 
-	if len(c.UserName) == 0 {
-		c.UserName = "username"
+	if len(c.Username) == 0 {
+		c.Username = "username"
 	}
 	if len(c.Email) == 0 {
 		c.Email = "email"
@@ -90,8 +80,6 @@ func NewUserRepositoryByConfig(session *gocql.Session, tableName, prefix string,
 		Services:        s,
 		GenderMapper:    genderMapper,
 		Schema:          &c,
-		updatedTimeName: c.UpdatedTime,
-		updatedByName:   c.UpdatedBy,
 		Status:          status,
 	}
 	return m
@@ -115,13 +103,7 @@ func NewUserRepository(session *gocql.Session, tableName, prefix, activatedStatu
 		TableName:       tableName,
 		Prefix:          prefix,
 		ActivatedStatus: activatedStatus,
-		StatusName:      "status",
 		Services:        services,
-		UserName:        "username",
-		EmailName:       "email",
-		OAuth2EmailName: "email",
-		AccountName:     "account",
-		ActiveName:      "active",
 		Status:          status,
 		GenderMapper:    genderMapper,
 	}
@@ -142,7 +124,7 @@ func (s *UserRepository) GetUser(ctx context.Context, email string) (string, boo
 	userId := ""
 	statusUser := ""
 	queryString := (`SELECT %s, %s FROM %s WHERE %s = ? ALLOW FILTERING`)
-	queryUserName := fmt.Sprintf(queryString, s.Schema.UserId, s.Schema.Status, s.TableName, s.Schema.UserName)
+	queryUserName := fmt.Sprintf(queryString, s.Schema.Id, s.Schema.Status, s.TableName, s.Schema.Username)
 
 	session := s.Session
 	resultUserName := session.Query(queryUserName, email)
@@ -153,7 +135,7 @@ func (s *UserRepository) GetUser(ctx context.Context, email string) (string, boo
 			break
 		}
 		// Do things with row
-		if userIdRow, ok := row[s.Schema.UserId]; ok {
+		if userIdRow, ok := row[s.Schema.Id]; ok {
 			userId = userIdRow.(string)
 		}
 		if statusDb, ok := row[s.Schema.Status]; ok {
@@ -161,7 +143,7 @@ func (s *UserRepository) GetUser(ctx context.Context, email string) (string, boo
 		}
 	}
 	if len(userId) <= 0 {
-		queryEmail := fmt.Sprintf(queryString, s.Schema.UserId, s.Schema.Status, s.TableName, s.Schema.Email)
+		queryEmail := fmt.Sprintf(queryString, s.Schema.Id, s.Schema.Status, s.TableName, s.Schema.Email)
 		resultEmail := session.Query(queryEmail, email)
 
 		for _, _ = range resultUserName.Iter().Columns() {
@@ -171,7 +153,7 @@ func (s *UserRepository) GetUser(ctx context.Context, email string) (string, boo
 				break
 			}
 			// Do things with row
-			if userIdRow, ok := row[s.Schema.UserId]; ok {
+			if userIdRow, ok := row[s.Schema.Id]; ok {
 				userId = userIdRow.(string)
 			}
 			if statusDb, ok := row[s.Schema.Status]; ok {
@@ -180,7 +162,7 @@ func (s *UserRepository) GetUser(ctx context.Context, email string) (string, boo
 		}
 	}
 	if len(userId) <= 0 {
-		queryOAuth2Email := fmt.Sprintf(queryString, s.Schema.UserId, s.Schema.Status, s.TableName, s.Prefix+s.Schema.Email)
+		queryOAuth2Email := fmt.Sprintf(queryString, s.Schema.Id, s.Schema.Status, s.TableName, s.Prefix+s.Schema.Email)
 		resultqueryOAuth2Email := session.Query(queryOAuth2Email, email)
 		for _, _ = range resultUserName.Iter().Columns() {
 			// New map each iteration
@@ -189,7 +171,7 @@ func (s *UserRepository) GetUser(ctx context.Context, email string) (string, boo
 				break
 			}
 			// Do things with row
-			if userIdRow, ok := row[s.Schema.UserId]; ok {
+			if userIdRow, ok := row[s.Schema.Id]; ok {
 				userId = userIdRow.(string)
 			}
 			if statusDb, ok := row[s.Schema.Status]; ok {
@@ -219,13 +201,13 @@ func (s *UserRepository) Update(ctx context.Context, id, email, account string) 
 	user[s.Prefix+s.Schema.Account] = account
 	user[s.Prefix+s.Schema.Active] = true
 
-	if len(s.updatedTimeName) > 0 {
-		user[s.updatedTimeName] = time.Now()
+	if len(s.Schema.UpdatedTime) > 0 {
+		user[s.Schema.UpdatedTime] = time.Now()
 	}
-	if len(s.updatedByName) > 0 {
-		user[s.updatedByName] = id
+	if len(s.Schema.UpdatedBy) > 0 {
+		user[s.Schema.UpdatedBy] = id
 	}
-	query, values := BuildUpdate(s.TableName, user, s.Schema.UserId, id, "?")
+	query, values := BuildUpdate(s.TableName, user, s.Schema.Id, id, "?")
 	result := session.Query(query, values...)
 	if result.Exec() != nil {
 		return false, result.Exec()
@@ -251,8 +233,8 @@ func (s *UserRepository) Insert(ctx context.Context, id string, personInfo oauth
 func (s *UserRepository) userToMap(ctx context.Context, id string, user oauth2.User) map[string]interface{} {
 	userMap := oauth2.UserToMap(ctx, id, user, s.GenderMapper, s.Schema)
 	//userMap := User{}
-	userMap[s.Schema.UserId] = id
-	userMap[s.Schema.UserName] = user.Email
+	userMap[s.Schema.Id] = id
+	userMap[s.Schema.Username] = user.Email
 	userMap[s.Schema.Status] = s.ActivatedStatus
 
 	userMap[s.Prefix+s.Schema.OAuth2Email] = user.Email

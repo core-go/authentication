@@ -5,9 +5,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/core-go/auth"
-	"strings"
-
 	"github.com/core-go/auth/oauth2"
+	"strings"
 )
 
 type UserRepository struct {
@@ -15,15 +14,6 @@ type UserRepository struct {
 	Prefix          string
 	ActivatedStatus string
 	Services        []string
-	StatusName      string
-	UserName        string
-	EmailName       string
-	OAuth2EmailName string
-	AccountName     string
-	ActiveName      string
-
-	updatedTimeName string
-	updatedByName   string
 	Status          *auth.UserStatusConfig
 	GenderMapper    oauth2.OAuth2GenderMapper
 	Schema          *oauth2.OAuth2SchemaConfig
@@ -34,8 +24,8 @@ func NewUserRepositoryByConfig(db *firestore.Client, collectionName, prefix stri
 	if len(options) >= 1 {
 		genderMapper = options[0]
 	}
-	if len(c.UserName) == 0 {
-		c.UserName = "userName"
+	if len(c.Username) == 0 {
+		c.Username = "username"
 	}
 	if len(c.Email) == 0 {
 		c.Email = "email"
@@ -61,7 +51,6 @@ func NewUserRepositoryByConfig(db *firestore.Client, collectionName, prefix stri
 		GenderMapper:    genderMapper,
 		Status:          status,
 		Schema:          &c,
-		updatedByName:   c.UpdatedBy,
 	}
 	return m
 }
@@ -77,13 +66,7 @@ func NewUserRepository(db *firestore.Client, collectionName, prefix, activatedSt
 		Collection:      collection,
 		Prefix:          prefix,
 		ActivatedStatus: activatedStatus,
-		StatusName:      "status",
 		Services:        services,
-		UserName:        "userName",
-		EmailName:       "email",
-		OAuth2EmailName: "Email",
-		AccountName:     "Account",
-		ActiveName:      "Active",
 		GenderMapper:    genderMapper,
 		Status:          status,
 	}
@@ -102,13 +85,13 @@ func NewUserRepository(db *firestore.Client, collectionName, prefix, activatedSt
 
 func (r *UserRepository) GetUser(ctx context.Context, email string) (string, bool, bool, error) {
 	queries := []Query{
-		{Key: r.UserName, Operator: "==", Value: email},
-		{Key: r.EmailName, Operator: "==", Value: email},
-		{Key: r.Prefix + r.OAuth2EmailName, Operator: "==", Value: email},
+		{Key: r.Schema.Username, Operator: "==", Value: email},
+		{Key: r.Schema.Email, Operator: "==", Value: email},
+		{Key: r.Prefix + r.Schema.OAuth2Email, Operator: "==", Value: email},
 	}
 	for _, sv := range r.Services {
 		if sv != r.Prefix {
-			queries = append(queries, Query{Key: sv + r.OAuth2EmailName, Operator: "==", Value: email})
+			queries = append(queries, Query{Key: sv + r.Schema.OAuth2Email, Operator: "==", Value: email})
 		}
 	}
 	disable := false
@@ -124,7 +107,7 @@ func (r *UserRepository) GetUser(ctx context.Context, email string) (string, boo
 	userId = snapShot.Ref.ID
 	if r.Status != nil {
 		data := snapShot.Data()
-		if value, exist := data[r.StatusName]; exist {
+		if value, exist := data[r.Schema.Status]; exist {
 			if s, exist := value.(string); exist {
 				status = s
 			}
@@ -164,12 +147,12 @@ func (r *UserRepository) Update(ctx context.Context, id, email, account string) 
 	}
 
 	updateValue := []firestore.Update{
-		{Path: r.Prefix + r.OAuth2EmailName, Value: email},
-		{Path: r.Prefix + r.AccountName, Value: account},
-		{Path: r.Prefix + r.ActiveName, Value: true},
+		{Path: r.Prefix + r.Schema.OAuth2Email, Value: email},
+		{Path: r.Prefix + r.Schema.Account, Value: account},
+		{Path: r.Prefix + r.Schema.Active, Value: true},
 	}
-	if len(r.updatedByName) > 0 {
-		updateValue = append(updateValue, firestore.Update{Path: r.updatedByName, Value: id})
+	if len(r.Schema.UpdatedBy) > 0 {
+		updateValue = append(updateValue, firestore.Update{Path: r.Schema.UpdatedBy, Value: id})
 	}
 
 	_, err = r.Collection.Doc(id).Update(ctx, updateValue)
@@ -197,11 +180,11 @@ func (r *UserRepository) Insert(ctx context.Context, id string, user oauth2.User
 func (r *UserRepository) userToMap(ctx context.Context, id string, user oauth2.User) map[string]interface{} {
 	userMap := oauth2.UserToMap(ctx, id, user, r.GenderMapper, r.Schema)
 
-	userMap[r.UserName] = user.Email
-	userMap[r.StatusName] = r.ActivatedStatus
+	userMap[r.Schema.Username] = user.Email
+	userMap[r.Schema.Status] = r.ActivatedStatus
 
-	userMap[r.Prefix+r.OAuth2EmailName] = user.Email
-	userMap[r.Prefix+r.AccountName] = user.Account
-	userMap[r.Prefix+r.ActiveName] = true
+	userMap[r.Prefix+r.Schema.OAuth2Email] = user.Email
+	userMap[r.Prefix+r.Schema.Account] = user.Account
+	userMap[r.Prefix+r.Schema.Active] = true
 	return userMap
 }
