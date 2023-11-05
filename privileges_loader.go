@@ -73,6 +73,7 @@ func ToPrivileges(modules []Module) []Privilege {
 					Id:          item.Id,
 					Name:        item.Name,
 					Sequence:    item.Sequence,
+					Actions:     item.Actions,
 					Permissions: item.Permissions,
 				}
 				if item.Resource != nil {
@@ -103,6 +104,7 @@ func ToPrivilegesWithNoSequence(modules []Module) []Privilege {
 			Id:          v.Id,
 			Name:        v.Name,
 			Sequence:    v.Sequence,
+			Actions:     v.Actions,
 			Permissions: v.Permissions,
 		}
 		if v.Resource != nil {
@@ -122,6 +124,7 @@ func ToPrivilegesWithNoSequence(modules []Module) []Privilege {
 					Id:          item.Id,
 					Name:        item.Name,
 					Sequence:    item.Sequence,
+					Actions:     item.Actions,
 					Permissions: item.Permissions,
 				}
 				if item.Resource != nil {

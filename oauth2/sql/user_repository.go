@@ -38,6 +38,7 @@ type UserRepository struct {
 
 	updatedTimeName string
 	updatedByName   string
+	UseId           bool
 	Status          *auth.UserStatusConfig
 	GenderMapper    oauth2.OAuth2GenderMapper
 	Schema          *oauth2.OAuth2SchemaConfig
@@ -164,19 +165,24 @@ func (s *UserRepository) GetUser(ctx context.Context, email string) (string, boo
 	columns = append(columns, s.Schema.UserId, s.Schema.Status, s.TableName,
 		s.Schema.UserName, s.BuildParam(i),
 		s.Schema.Email, s.BuildParam(i+1), s.Prefix+s.Schema.OAuth2Email, s.BuildParam(i+2))
-	values = append(values, email, email, email)
-	var where strings.Builder
-	where.WriteString(`%s = %s OR %s = %s OR %s = %s`)
 	var sel strings.Builder
 	sel.WriteString(`SELECT %s, %s FROM %s WHERE `)
-	i = 3
-	for _, sv := range s.Services {
-		if sv != s.Prefix {
-			where.WriteString(` OR %s = `)
-			where.WriteString(s.BuildParam(i))
-			i++
-			columns = append(columns, sv+s.Schema.OAuth2Email)
-			values = append(values, email)
+	var where strings.Builder
+	if s.UseId {
+		values = append(values, email)
+		where.WriteString(`%s = %s`)
+	} else {
+		values = append(values, email, email, email)
+		where.WriteString(`%s = %s OR %s = %s OR %s = %s`)
+		i = 3
+		for _, sv := range s.Services {
+			if sv != s.Prefix {
+				where.WriteString(` OR %s = `)
+				where.WriteString(s.BuildParam(i))
+				i++
+				columns = append(columns, sv+s.Schema.OAuth2Email)
+				values = append(values, email)
+			}
 		}
 	}
 	sel.WriteString(where.String())

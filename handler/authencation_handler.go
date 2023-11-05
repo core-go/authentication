@@ -6,9 +6,11 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	. "github.com/core-go/auth"
 )
@@ -25,6 +27,8 @@ type AuthenticationHandler struct {
 	Log           func(ctx context.Context, resource string, action string, success bool, desc string) error
 	Resource      string
 	Action        string
+	Cookie        bool
+	Host          string
 	Decrypt       func(string) (string, error)
 }
 
@@ -156,6 +160,38 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 		if len(h.UserId) > 0 && result.User != nil && len(result.User.Id) > 0 {
 			ctx = context.WithValue(ctx, h.UserId, result.User.Id)
 			r = r.WithContext(ctx)
+		}
+		if h.Cookie {
+			var token string
+			expired := time.Now()
+			if result.User != nil {
+				result.User.Token = ""
+				token = result.User.Token
+				if result.User.TokenExpiredTime != nil {
+					expired = *result.User.TokenExpiredTime
+					result.User.TokenExpiredTime = nil
+				}
+			}
+			host := r.Header.Get("Origin")
+			if strings.Contains(host, h.Host) || strings.Contains(host, "localhost") {
+				u, err := url.Parse(host)
+				if err != nil {
+					respond(w, r, http.StatusInternalServerError, nil, h.Log, h.Resource, h.Action, false, err.Error())
+					return
+				}
+				host = strings.TrimPrefix(u.Hostname(), "www.")
+			}
+			http.SetCookie(w, &http.Cookie{
+				Name: "id",
+				Domain: host,
+				Value: token,
+				HttpOnly: true,
+				Path: "/",
+				MaxAge: 0,
+				Expires: expired,
+				SameSite: http.SameSiteStrictMode,
+				Secure: true,
+			})
 		}
 		respond(w, r, http.StatusOK, result, h.Log, h.Resource, h.Action, true, "")
 	}
