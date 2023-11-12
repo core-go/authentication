@@ -2,10 +2,7 @@ package azure
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
-	"fmt"
-	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
@@ -16,28 +13,11 @@ import (
 )
 
 const internalServerError = "Internal Server Error"
-const arr = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 type CacheService interface {
 	Put(ctx context.Context, key string, obj interface{}, timeToLive time.Duration) error
-}
-
-func Random(n int) string {
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = arr[rand.Intn(len(arr))]
-	}
-	return string(b)
-}
-func Encode(length int, id string) string {
-	if length > 9 {
-		length = 9
-	}
-	rand.Seed(time.Now().UnixNano())
-	str := Random(length)
-	bytes := []byte(id)
-	e := base64.StdEncoding.EncodeToString(bytes)
-	return fmt.Sprintf("%d%s%s", length, e, str)
+	Get(ctx context.Context, key string) (string, error)
+	Remove(ctx context.Context, key string) (bool, error)
 }
 
 type AuthenticationHandler struct {
@@ -46,8 +26,11 @@ type AuthenticationHandler struct {
 	Log      func(ctx context.Context, resource string, action string, success bool, desc string) error
 	Ip       string
 	UserId   string
+	CookieName string
+	PrefixSessionIndex string
 	Resource string
 	Action   string
+	LogoutAction string
 	Cache    CacheService
 	Expired  time.Duration
 	Host     string
@@ -55,28 +38,43 @@ type AuthenticationHandler struct {
 }
 
 func NewAuthenticationHandlerWithCache(authenticate func(ctx context.Context, authorization string) (*auth.UserAccount, bool, error), logError func(context.Context, string, ...map[string]interface{}), cache CacheService, generate func(ctx context.Context) (string, error), expired time.Duration, host string, writeLog func(context.Context, string, string, bool, string) error, options ...string) *AuthenticationHandler {
-	var ip, userId, resource, action string
-	if len(options) >= 1 {
+	var ip, userId, cookieName, prefixSessionIndex, resource, action, logoutAction string
+	if len(options) > 0 {
 		ip = options[0]
 	} else {
 		ip = "ip"
 	}
-	if len(options) >= 2 {
+	if len(options) > 1 {
 		userId = options[1]
 	} else {
 		userId = "userId"
 	}
-	if len(options) >= 3 {
-		resource = options[2]
+	if len(options) > 2 {
+		cookieName = options[2]
+	} else {
+		cookieName = "id"
+	}
+	if len(options) > 3 {
+		prefixSessionIndex = options[3]
+	} else {
+		prefixSessionIndex = "index:"
+	}
+	if len(options) > 4 {
+		resource = options[4]
 	} else {
 		resource = "authentication"
 	}
-	if len(options) >= 4 {
-		action = options[3]
+	if len(options) > 5 {
+		action = options[5]
 	} else {
 		action = "authenticate"
 	}
-	return &AuthenticationHandler{Auth: authenticate, Resource: resource, Action: action, Error: logError, Ip: ip, UserId: userId, Log: writeLog, Cache: cache, Generate: generate, Expired: expired, Host: host}
+	if len(options) > 6 {
+		logoutAction = options[6]
+	} else {
+		logoutAction = "Logout"
+	}
+	return &AuthenticationHandler{Auth: authenticate, Resource: resource, Action: action, Error: logError, Ip: ip, UserId: userId, CookieName: cookieName, PrefixSessionIndex: prefixSessionIndex, Log: writeLog, Cache: cache, Generate: generate, Expired: expired, Host: host, LogoutAction: logoutAction}
 }
 func NewAuthenticationHandler(authenticate func(ctx context.Context, authorization string) (*auth.UserAccount, bool, error), logError func(context.Context, string, ...map[string]interface{}), options ...func(context.Context, string, string, bool, string) error) *AuthenticationHandler {
 	var writeLog func(context.Context, string, string, bool, string) error
@@ -122,18 +120,17 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 		ctx = context.WithValue(ctx, h.UserId, user.Id)
 		r = r.WithContext(ctx)
 	}
-	session := make(map[string]string)
-	session["token"] = user.Token
-	session["id"] = user.Id
-	session["ip"] = ip
-	session["userAgent"] = r.UserAgent()
-	err := h.Cache.Put(r.Context(), user.Id, session, h.Expired)
-	if err != nil {
-		h.Error(r.Context(), err.Error())
-		respond(w, r, http.StatusInternalServerError, nil, h.Log, h.Resource, h.Action, false, err.Error())
-		return
-	}
 	if h.Cache != nil && h.Generate != nil && len(h.Host) > 0 {
+		session := make(map[string]string)
+		session["token"] = user.Token
+		session["azure_token"] = authorization
+		session["id"] = user.Id
+		err := h.Cache.Put(r.Context(), user.Id, session, h.Expired)
+		if err != nil {
+			h.Error(r.Context(), err.Error())
+			respond(w, r, http.StatusInternalServerError, nil, h.Log, h.Resource, h.Action, false, err.Error())
+			return
+		}
 		host := r.Header.Get("Origin")
 		if strings.Contains(host, h.Host) || strings.Contains(host, "localhost") {
 			u, err := url.Parse(host)
@@ -143,25 +140,79 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 			}
 			host = strings.TrimPrefix(u.Hostname(), "www.")
 		}
+		sessionId := ""
 		uuid, err := h.Generate(r.Context())
 		if err != nil {
+			h.Error(r.Context(), err.Error())
 			respond(w, r, http.StatusInternalServerError, nil, h.Log, h.Resource, h.Action, false, err.Error())
 			return
 		}
+		sessionId = uuid
+		indexData := make(map[string]string)
+		indexData["sid"] = sessionId
+		indexData["ip"] = ip
+		indexData["user_agent"] = r.UserAgent()
+		err2 := h.Cache.Put(r.Context(), h.PrefixSessionIndex + user.Id, indexData, h.Expired)
+		if err2 != nil {
+			h.Error(r.Context(), err.Error())
+			respond(w, r, http.StatusInternalServerError, nil, h.Log, h.Resource, h.Action, false, err2.Error())
+			return
+		}
+		err2 = h.Cache.Put(r.Context(), sessionId, session, h.Expired)
+		if err2 != nil {
+			h.Error(r.Context(), err.Error())
+			respond(w, r, http.StatusInternalServerError, nil, h.Log, h.Resource, h.Action, false, err2.Error())
+			return
+		}
 		http.SetCookie(w, &http.Cookie{
-			Name: "id",
-			Domain: host,
-			Value: Encode(5, uuid),
+			Name:     h.CookieName,
+			Domain:   host,
+			Value:    sessionId,
 			HttpOnly: true,
-			Path: "/",
-			MaxAge: 0,
-			Expires: time.Now().Add(h.Expired),
+			Path:     "/",
+			MaxAge:   0,
+			Expires:  time.Now().Add(h.Expired),
 			SameSite: http.SameSiteStrictMode,
-			Secure: true,
+			Secure:   true,
 		})
 		user.Token = ""
 	}
 	respond(w, r, http.StatusOK, user, h.Log, h.Resource, h.Action, true, "")
+}
+func (h *AuthenticationHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie(h.CookieName)
+	if err != nil {
+		respond(w, r, http.StatusInternalServerError, "", h.Log, h.Resource, h.Action, false, err.Error())
+		return
+	}
+	if cookie == nil || cookie.Value == "" {
+		respond(w, r, http.StatusOK, expired, h.Log, h.Resource, h.LogoutAction, true, "")
+		return
+	}
+	data, err := GetCookie(r.Context(), cookie.Value, h.Cache.Get)
+	if err != nil {
+		if err.Error() == "redis: nil" {
+			respond(w, r, http.StatusOK, 1, h.Log, h.Resource, h.LogoutAction, true, err.Error())
+			return
+		}
+	}
+	sessionId := GetString(data, "sid")
+	if len(sessionId) > 0 {
+		_, err = h.Cache.Remove(r.Context(), sessionId)
+		if err != nil {
+			respond(w, r, http.StatusInternalServerError, "", h.Log, h.Resource, h.LogoutAction, false, err.Error())
+			return
+		}
+	}
+	userId := GetString(data, "id")
+	if len(userId) > 0 {
+		_, err = h.Cache.Remove(r.Context(), h.PrefixSessionIndex + userId)
+		if err != nil {
+			respond(w, r, http.StatusInternalServerError, "", h.Log, h.Resource, h.LogoutAction, false, err.Error())
+			return
+		}
+	}
+	respond(w, r, http.StatusOK, 1, h.Log, h.Resource, h.LogoutAction, true, "")
 }
 func getRemoteIp(r *http.Request) string {
 	ips := r.Header.Get("X-FORWARDED-FOR")
@@ -174,7 +225,30 @@ func getRemoteIp(r *http.Request) string {
 	}
 	return ""
 }
-
+func GetString(data map[string]interface{}, key string) string {
+	if data == nil {
+		return ""
+	}
+	if value, ok := data[key]; ok {
+		return value.(string)
+	}
+	return ""
+}
+func GetCookie(ctx context.Context, value string, cache func(context.Context, string) (string, error)) (map[string]interface{}, error) {
+	var data map[string]interface{}
+	s, err := cache(ctx, value)
+	if err != nil {
+		return data, err
+	}
+	if len(s) > 0 {
+		err = json.Unmarshal([]byte(s), &data)
+		if err != nil {
+			return nil, err
+		}
+	}
+	data["sid"] = value
+	return data, err
+}
 func respond(w http.ResponseWriter, r *http.Request, code int, result interface{}, writeLog func(context.Context, string, string, bool, string) error, resource string, action string, success bool, desc string) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)

@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/core-go/auth"
+	a "github.com/core-go/auth"
 	"google.golang.org/api/iterator"
 	"strconv"
 	"time"
@@ -16,7 +16,7 @@ type AuthenticationRepository struct {
 	PasswordCollection      *firestore.CollectionRef
 	CheckTwoFactors         func(ctx context.Context, id string) (bool, error)
 	ActivatedStatus         interface{}
-	Status                  auth.UserStatusConfig
+	Status                  a.UserStatusConfig
 	UserName                string
 	SuccessTimeName         string
 	FailTimeName            string
@@ -39,11 +39,11 @@ type AuthenticationRepository struct {
 	TwoFactorsName          string
 }
 
-func NewAuthenticationRepositoryByConfig(client *firestore.Client, userCollectionName, passwordCollectionName string, checkTwoFactors func(ctx context.Context, id string) (bool, error), activatedStatus interface{}, status auth.UserStatusConfig, c auth.SchemaConfig) *AuthenticationRepository {
+func NewAuthenticationRepositoryByConfig(client *firestore.Client, userCollectionName, passwordCollectionName string, checkTwoFactors func(ctx context.Context, id string) (bool, error), activatedStatus interface{}, status a.UserStatusConfig, c a.SchemaConfig) *AuthenticationRepository {
 	return NewAuthenticationRepository(client, userCollectionName, passwordCollectionName, checkTwoFactors, activatedStatus, status, c.Username, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.Roles, c.PasswordChangedTime, c.Password, c.Contact, c.Email, c.Phone, c.DisplayName, c.MaxPasswordAge, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors)
 }
 
-func NewAuthenticationRepository(client *firestore.Client, userCollectionName, passwordCollectionName string, checkTwoFactors func(ctx context.Context, id string) (bool, error), activatedStatus interface{}, status auth.UserStatusConfig, userName, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, roleName, passwordChangedTimeName, passwordName, contactName, emailName, phoneName, displayNameName, maxPasswordAgeName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string) *AuthenticationRepository {
+func NewAuthenticationRepository(client *firestore.Client, userCollectionName, passwordCollectionName string, checkTwoFactors func(ctx context.Context, id string) (bool, error), activatedStatus interface{}, status a.UserStatusConfig, userName, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, roleName, passwordChangedTimeName, passwordName, contactName, emailName, phoneName, displayNameName, maxPasswordAgeName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string) *AuthenticationRepository {
 	passwordCollection := client.Collection(passwordCollectionName)
 	userCollection := passwordCollection
 	if passwordCollectionName != userCollectionName {
@@ -78,10 +78,10 @@ func NewAuthenticationRepository(client *firestore.Client, userCollectionName, p
 	}
 }
 
-func (r *AuthenticationRepository) GetUserInfo(ctx context.Context, username string) (*auth.UserInfo, error) {
-	userInfo := auth.UserInfo{}
+func (r *AuthenticationRepository) GetUserInfo(ctx context.Context, auth a.AuthInfo) (*a.UserInfo, error) {
+	userInfo := a.UserInfo{}
 	//query := bson.M{"_id": id}
-	iter := r.UserCollection.Where(r.UserName, "==", username).Documents(ctx)
+	iter := r.UserCollection.Where(r.UserName, "==", auth.Username).Documents(ctx)
 	defer iter.Stop()
 	result, err := iter.Next()
 	if err == iterator.Done {
@@ -118,8 +118,8 @@ func (r *AuthenticationRepository) GetUserInfo(ctx context.Context, username str
 				return nil, fmt.Errorf(r.StatusName+": is of unsupported type %T", v)
 			}
 		}
-
-		userInfo.Deactivated = statusUserInfo == r.Status.Deactivated
+		deactivated := statusUserInfo == r.Status.Deactivated
+		userInfo.Deactivated = &deactivated
 		userInfo.Suspended = statusUserInfo == r.Status.Suspended
 		userInfo.Disable = statusUserInfo == r.Status.Disable
 	}
@@ -138,7 +138,7 @@ func (r *AuthenticationRepository) GetUserInfo(ctx context.Context, username str
 		contact, ok := rawStatus[r.ContactName]
 		if ok {
 			if e, k := contact.(string); k {
-				userInfo.Contact = e
+				userInfo.Contact = &e
 			}
 		}
 	}
@@ -146,7 +146,7 @@ func (r *AuthenticationRepository) GetUserInfo(ctx context.Context, username str
 		email, ok := rawStatus[r.EmailName]
 		if ok {
 			if e, k := email.(string); k {
-				userInfo.Email = e
+				userInfo.Email = &e
 			}
 		}
 	}
@@ -154,7 +154,7 @@ func (r *AuthenticationRepository) GetUserInfo(ctx context.Context, username str
 		phone, ok := rawStatus[r.PhoneName]
 		if ok {
 			if e, k := phone.(string); k {
-				userInfo.Phone = e
+				userInfo.Phone = &e
 			}
 		}
 	}
@@ -178,7 +178,7 @@ func (r *AuthenticationRepository) GetUserInfo(ctx context.Context, username str
 		displayName, ok := rawStatus[r.DisplayNameName]
 		if ok {
 			if e, k := displayName.(string); k {
-				userInfo.DisplayName = e
+				userInfo.DisplayName = &e
 			}
 		}
 	}
@@ -187,7 +187,7 @@ func (r *AuthenticationRepository) GetUserInfo(ctx context.Context, username str
 		maxPasswordAge, ok := rawStatus[r.MaxPasswordAgeName]
 		if ok {
 			if e, k := maxPasswordAge.(int32); k {
-				userInfo.MaxPasswordAge = e
+				userInfo.MaxPasswordAge = &e
 			}
 		}
 	}
@@ -196,7 +196,7 @@ func (r *AuthenticationRepository) GetUserInfo(ctx context.Context, username str
 		maxPasswordAge, ok := rawStatus[r.UserTypeName]
 		if ok {
 			if e, k := maxPasswordAge.(string); k {
-				userInfo.UserType = e
+				userInfo.UserType = &e
 			}
 		}
 	}
@@ -243,7 +243,7 @@ func (r *AuthenticationRepository) GetUserInfo(ctx context.Context, username str
 	if r.CheckTwoFactors != nil {
 		id := userInfo.Id
 		if len(id) == 0 {
-			id = username
+			id = auth.Username
 		}
 		ok, er2 := r.CheckTwoFactors(ctx, id)
 		if er2 != nil {
@@ -298,7 +298,7 @@ func getTime(accessTime string) *time.Time {
 	return nil
 }
 
-func (r *AuthenticationRepository) getPasswordInfo(ctx context.Context, user *auth.UserInfo, raw map[string]interface{}) *auth.UserInfo {
+func (r *AuthenticationRepository) getPasswordInfo(ctx context.Context, user *a.UserInfo, raw map[string]interface{}) *a.UserInfo {
 	if len(r.PasswordName) > 0 {
 		pass, ok := raw[r.PasswordName]
 		if ok {
@@ -339,7 +339,8 @@ func (r *AuthenticationRepository) getPasswordInfo(ctx context.Context, user *au
 		pass, ok := raw[r.FailCountName]
 		if ok {
 			if e, k := pass.(int64); k {
-				user.FailCount = int(e)
+				failCount := int(e)
+				user.FailCount = &failCount
 			}
 		}
 	}
@@ -356,8 +357,8 @@ func (r *AuthenticationRepository) getPasswordInfo(ctx context.Context, user *au
 }
 
 /*
-func (r *AuthenticationRepository) GetPasswordInfo(ctx context.Context, id string) (*auth.PasswordInfo, error) {
-	authentication := auth.PasswordInfo{}
+func (r *AuthenticationRepository) GetPasswordInfo(ctx context.Context, id string) (*a.PasswordInfo, error) {
+	authentication := a.PasswordInfo{}
 	ok, err := f.FindOneAndDecode(ctx, r.collection, id, &authentication)
 	if ok && err == nil {
 		return &authentication, nil
@@ -369,17 +370,13 @@ func (r *AuthenticationRepository) GetPasswordInfo(ctx context.Context, id strin
 //	return r.PassAuthentication(ctx, userId)
 //}
 
-func (r *AuthenticationRepository) Pass(ctx context.Context, userId string) (int64, error) {
-	return r.passAuthenticationAndActivate(ctx, userId, false)
+func (r *AuthenticationRepository) Pass(ctx context.Context, userId string, deactivated *bool) (int64, error) {
+	return r.passAuthenticationAndActivate(ctx, userId, deactivated)
 }
 
-func (r *AuthenticationRepository) PassAndActivate(ctx context.Context, userId string) (int64, error) {
-	return r.passAuthenticationAndActivate(ctx, userId, true)
-}
-
-func (r *AuthenticationRepository) passAuthenticationAndActivate(ctx context.Context, userId string, updateStatus bool) (int64, error) {
+func (r *AuthenticationRepository) passAuthenticationAndActivate(ctx context.Context, userId string, updateStatus *bool) (int64, error) {
 	if len(r.SuccessTimeName) == 0 && len(r.FailCountName) == 0 && len(r.LockedUntilTimeName) == 0 {
-		if !updateStatus {
+		if updateStatus != nil && !*updateStatus {
 			return 0, nil
 		} else if len(r.StatusName) == 0 {
 			return 0, nil
@@ -396,7 +393,7 @@ func (r *AuthenticationRepository) passAuthenticationAndActivate(ctx context.Con
 	if len(r.LockedUntilTimeName) > 0 {
 		pass[r.LockedUntilTimeName] = nil
 	}
-	if !updateStatus {
+	if updateStatus != nil && !*updateStatus {
 		return r.upsertWithMap(ctx, r.PasswordCollection, userId, pass)
 	}
 	if r.UserCollection.ID == r.PasswordCollection.ID {
@@ -445,7 +442,7 @@ func (r *AuthenticationRepository) passAuthenticationAndActivate(ctx context.Con
 //	return err
 //}
 
-func (r *AuthenticationRepository) Fail(ctx context.Context, userId string, failCount int, lockedUntil *time.Time) error {
+func (r *AuthenticationRepository) Fail(ctx context.Context, userId string, failCount *int, lockedUntil *time.Time) error {
 	if len(r.FailTimeName) == 0 && len(r.FailCountName) == 0 && len(r.LockedUntilTimeName) == 0 {
 		return nil
 	}
@@ -454,8 +451,8 @@ func (r *AuthenticationRepository) Fail(ctx context.Context, userId string, fail
 	if len(r.FailTimeName) > 0 {
 		pass[r.FailTimeName] = time.Now()
 	}
-	if len(r.FailCountName) > 0 {
-		pass[r.FailCountName] = failCount
+	if failCount != nil && len(r.FailCountName) > 0 {
+		pass[r.FailCountName] = *failCount + 1
 		if len(r.LockedUntilTimeName) > 0 {
 			pass[r.LockedUntilTimeName] = lockedUntil
 		}
