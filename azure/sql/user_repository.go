@@ -92,17 +92,22 @@ func NewUserRepository(db *sql.DB, tableName, activatedStatus string, displayNam
 	return m
 }
 
-func (s *UserRepository) Exist(ctx context.Context, id string) (bool, error) {
-	query := fmt.Sprintf(`select %s from %s where %s = %s`, s.Schema.Id, s.TableName, s.Schema.Id, s.BuildParam(1))
+func (s *UserRepository) Exist(ctx context.Context, id string) (bool, string, error) {
+	var displayName string
+	query := fmt.Sprintf(`select %s, %s from %s where %s = %s`, s.Schema.Id, s.Schema.DisplayName, s.TableName, s.Schema.Id, s.BuildParam(1))
 	rows, err := s.DB.QueryContext(ctx, query, id)
 	if err != nil {
-		return false, err
+		return false, displayName, err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		return true, nil
+		err = rows.Scan(&id, &displayName)
+		if err != nil {
+			return false, displayName, err
+		}
+		return true, displayName, nil
 	}
-	return false, nil
+	return false, displayName, nil
 }
 
 func (s *UserRepository) Insert(ctx context.Context, id string, personInfo *azure.AzureUser) (bool, error) {

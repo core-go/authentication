@@ -21,7 +21,7 @@ type Config struct {
 }
 
 type UserRepository interface {
-	Exist(ctx context.Context, id string) (bool, error)
+	Exist(ctx context.Context, id string) (bool, string, error)
 	Insert(ctx context.Context, id string, user *AzureUser) (bool, error)
 }
 
@@ -73,7 +73,7 @@ func (a Authenticator) Authenticate(ctx context.Context, authorization string) (
 
 	var displayName, userId string
 	userId = azureID
-	exist, er3 := a.UserRepository.Exist(ctx, azureID)
+	exist, displayName, er3 := a.UserRepository.Exist(ctx, azureID)
 	if er3 != nil {
 		return nil, false, er3
 	}
