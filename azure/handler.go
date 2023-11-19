@@ -72,7 +72,7 @@ func NewAuthenticationHandlerWithCache(authenticate func(ctx context.Context, au
 	if len(options) > 6 {
 		logoutAction = options[6]
 	} else {
-		logoutAction = "Logout"
+		logoutAction = "logout"
 	}
 	return &AuthenticationHandler{Auth: authenticate, Resource: resource, Action: action, Error: logError, Ip: ip, UserId: userId, CookieName: cookieName, PrefixSessionIndex: prefixSessionIndex, Log: writeLog, Cache: cache, Generate: generate, Expired: expired, Host: host, LogoutAction: logoutAction}
 }
@@ -81,7 +81,7 @@ func NewAuthenticationHandler(authenticate func(ctx context.Context, authorizati
 	if len(options) >= 1 {
 		writeLog = options[0]
 	}
-	return NewAuthenticationHandlerWithCache(authenticate, logError, nil, nil, time.Duration(10 * time.Second), "", writeLog, "ip", "userId", "authentication", "authenticate")
+	return NewAuthenticationHandlerWithCache(authenticate, logError, nil, nil, time.Duration(10 * time.Second), "", writeLog, "ip", "userId", "authentication", "authenticate", "logout")
 }
 
 func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Request) {
@@ -125,12 +125,6 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 		session["token"] = user.Token
 		session["azure_token"] = authorization
 		session["id"] = user.Id
-		err := h.Cache.Put(r.Context(), user.Id, session, h.Expired)
-		if err != nil {
-			h.Error(r.Context(), err.Error())
-			respond(w, r, http.StatusInternalServerError, nil, h.Log, h.Resource, h.Action, false, err.Error())
-			return
-		}
 		host := r.Header.Get("Origin")
 		if strings.Contains(host, h.Host) || strings.Contains(host, "localhost") {
 			u, err := url.Parse(host)
@@ -151,7 +145,7 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 		indexData := make(map[string]string)
 		indexData["sid"] = sessionId
 		indexData["ip"] = ip
-		indexData["user_agent"] = r.UserAgent()
+		indexData["userAgent"] = r.UserAgent()
 		err2 := h.Cache.Put(r.Context(), h.PrefixSessionIndex + user.Id, indexData, h.Expired)
 		if err2 != nil {
 			h.Error(r.Context(), err.Error())
