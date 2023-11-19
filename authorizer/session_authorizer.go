@@ -1,4 +1,4 @@
-package security
+package authorizer
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-type ICacheService interface {
+type CacheService interface {
 	Get(ctx context.Context, key string) (string, error)
 	Remove(ctx context.Context, key string) (bool, error)
 	Expire(ctx context.Context, key string, timeToLive time.Duration) (bool, error)
@@ -21,12 +21,12 @@ type SessionAuthorizer struct {
 	SecretKey          string
 	CookieName         string
 	VerifyToken        func(tokenString string, secret string) (map[string]interface{}, int64, int64, error)
-	Cache              ICacheService
+	Cache              CacheService
 	sessionExpiredTime time.Duration
 	LogError           func(ctx context.Context, msg string, opts ...map[string]interface{})
 }
 
-func NewSessionAuthorizer(secretKey string, verifyToken func(tokenString string, secret string) (map[string]interface{}, int64, int64, error), cache ICacheService, sessionExpiredTime time.Duration, logError func(ctx context.Context, msg string, opts ...map[string]interface{}), opts ...string) *SessionAuthorizer {
+func NewSessionAuthorizer(secretKey string, verifyToken func(tokenString string, secret string) (map[string]interface{}, int64, int64, error), cache CacheService, sessionExpiredTime time.Duration, logError func(ctx context.Context, msg string, opts ...map[string]interface{}), opts ...string) *SessionAuthorizer {
 	var prefixSessionIndex, cookieName string
 	if len(opts) > 0 {
 		prefixSessionIndex = opts[0]
@@ -56,12 +56,12 @@ func (h *SessionAuthorizer) Authorize(next http.Handler, skipRefreshTTL bool) ht
 		// case if set sessionID in cookie, need get token from cookie
 		cookie, err := r.Cookie(h.CookieName)
 		if err != nil {
-			http.Error(w, "invalid Authorization token", http.StatusUnauthorized)
+			http.Error(w, "invalid authorization token", http.StatusUnauthorized)
 			return
 		}
 
 		if cookie == nil || cookie.Value == "" {
-			http.Error(w, "invalid Authorization token", http.StatusUnauthorized)
+			http.Error(w, "invalid authorization token", http.StatusUnauthorized)
 			return
 		}
 		sessionId = cookie.Value
