@@ -32,7 +32,7 @@ type AuthenticationHandler struct {
 	Decrypt       func(string) (string, error)
 }
 
-func NewAuthenticationHandlerWithDecrypter(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, timeout int, logError func(context.Context, string, ...map[string]interface{}), addTokenIntoWhitelist func(id string, token string) error, ipFromRequest bool, decrypt func(string) (string, error), writeLog func(context.Context, string, string, bool, string) error, options ...string) *AuthenticationHandler {
+func NewAuthenticationHandlerWithDecrypter(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, timeout int, logError func(context.Context, string, ...map[string]interface{}), addTokenIntoWhitelist func(id string, token string) error, cookie bool, ipFromRequest bool, decrypt func(string) (string, error), writeLog func(context.Context, string, string, bool, string) error, options ...string) *AuthenticationHandler {
 	var ip, userId, resource, action string
 	if len(options) >= 1 {
 		ip = options[0]
@@ -54,21 +54,21 @@ func NewAuthenticationHandlerWithDecrypter(authenticate func(context.Context, Au
 	} else {
 		action = "authenticate"
 	}
-	return &AuthenticationHandler{Auth: authenticate, SystemError: systemError, Timeout: timeout, Resource: resource, Action: action, Error: logError, Ip: ip, UserId: userId, Whitelist: addTokenIntoWhitelist, Log: writeLog, Decrypt: decrypt, IpFromRequest: ipFromRequest}
+	return &AuthenticationHandler{Auth: authenticate, SystemError: systemError, Timeout: timeout, Cookie: cookie, Resource: resource, Action: action, Error: logError, Ip: ip, UserId: userId, Whitelist: addTokenIntoWhitelist, Log: writeLog, Decrypt: decrypt, IpFromRequest: ipFromRequest}
 }
 func NewAuthenticationHandler(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, timeout int, logError func(context.Context, string, ...map[string]interface{}), options ...func(context.Context, string, string, bool, string) error) *AuthenticationHandler {
 	var writeLog func(context.Context, string, string, bool, string) error
 	if len(options) >= 1 {
 		writeLog = options[0]
 	}
-	return NewAuthenticationHandlerWithDecrypter(authenticate, systemError, timeout, logError, nil, true, nil, writeLog, "ip", "userId", "authentication", "authenticate")
+	return NewAuthenticationHandlerWithDecrypter(authenticate, systemError, timeout, logError, nil, true, true, nil, writeLog, "ip", "userId", "authentication", "authenticate")
 }
-func NewAuthenticationHandlerWithWhitelist(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, timeout int, logError func(context.Context, string, ...map[string]interface{}), addTokenIntoWhitelist func(id string, token string) error, ipFromRequest bool, options ...func(context.Context, string, string, bool, string) error) *AuthenticationHandler {
+func NewAuthenticationHandlerWithWhitelist(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, timeout int, logError func(context.Context, string, ...map[string]interface{}), addTokenIntoWhitelist func(id string, token string) error, cookie bool, ipFromRequest bool, options ...func(context.Context, string, string, bool, string) error) *AuthenticationHandler {
 	var writeLog func(context.Context, string, string, bool, string) error
 	if len(options) >= 1 {
 		writeLog = options[0]
 	}
-	return NewAuthenticationHandlerWithDecrypter(authenticate, systemError, timeout, logError, addTokenIntoWhitelist, ipFromRequest, nil, writeLog, "ip", "userId", "authentication", "authenticate")
+	return NewAuthenticationHandlerWithDecrypter(authenticate, systemError, timeout, logError, addTokenIntoWhitelist, cookie, ipFromRequest, nil, writeLog, "ip", "userId", "authentication", "authenticate")
 }
 
 func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Request) {
@@ -165,7 +165,6 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 			var token string
 			expired := time.Now()
 			if result.User != nil {
-				result.User.Token = ""
 				token = result.User.Token
 				if result.User.TokenExpiredTime != nil {
 					expired = *result.User.TokenExpiredTime
@@ -181,6 +180,10 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 				}
 				host = strings.TrimPrefix(u.Hostname(), "www.")
 			}
+			if token == "" {
+				http.Error(w, "cannot get token", http.StatusUnauthorized)
+				return
+			}
 			http.SetCookie(w, &http.Cookie{
 				Name: "id",
 				Domain: host,
@@ -192,6 +195,7 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 				SameSite: http.SameSiteStrictMode,
 				Secure: true,
 			})
+			result.User.Token = ""
 		}
 		respond(w, r, http.StatusOK, result, h.Log, h.Resource, h.Action, true, "")
 	}

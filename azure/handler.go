@@ -35,9 +35,10 @@ type AuthenticationHandler struct {
 	Expired  time.Duration
 	Host     string
 	Generate func(ctx context.Context) (string, error)
+	SingleSession bool
 }
 
-func NewAuthenticationHandlerWithCache(authenticate func(ctx context.Context, authorization string) (*auth.UserAccount, bool, error), logError func(context.Context, string, ...map[string]interface{}), cache CacheService, generate func(ctx context.Context) (string, error), expired time.Duration, host string, writeLog func(context.Context, string, string, bool, string) error, options ...string) *AuthenticationHandler {
+func NewAuthenticationHandlerWithCache(authenticate func(ctx context.Context, authorization string) (*auth.UserAccount, bool, error), logError func(context.Context, string, ...map[string]interface{}), cache CacheService, generate func(ctx context.Context) (string, error), expired time.Duration, host string, singleSession bool, writeLog func(context.Context, string, string, bool, string) error, options ...string) *AuthenticationHandler {
 	var ip, userId, cookieName, prefixSessionIndex, resource, action, logoutAction string
 	if len(options) > 0 {
 		ip = options[0]
@@ -81,7 +82,7 @@ func NewAuthenticationHandler(authenticate func(ctx context.Context, authorizati
 	if len(options) >= 1 {
 		writeLog = options[0]
 	}
-	return NewAuthenticationHandlerWithCache(authenticate, logError, nil, nil, time.Duration(10 * time.Second), "", writeLog, "ip", "userId", "authentication", "authenticate", "logout")
+	return NewAuthenticationHandlerWithCache(authenticate, logError, nil, nil, time.Duration(10 * time.Second), "", true, writeLog, "ip", "userId", "authentication", "authenticate", "logout")
 }
 
 func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Request) {
@@ -121,6 +122,25 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 		r = r.WithContext(ctx)
 	}
 	if h.Cache != nil && h.Generate != nil && len(h.Host) > 0 {
+		if h.SingleSession {
+			indexData := make(map[string]interface{})
+			data1, _ := h.Cache.Get(r.Context(), h.PrefixSessionIndex+user.Id)
+			if len(data1) > 0 {
+				err := json.Unmarshal([]byte(data1), &indexData)
+				if err != nil {
+					respond(w, r, http.StatusInternalServerError, nil, h.Log, h.Resource, h.Action, false, err.Error())
+					return
+				}
+				sid := GetString(indexData, "sid")
+				if len(sid) > 0 {
+					_, err2 := h.Cache.Remove(r.Context(), sid)
+					if err2 != nil {
+						respond(w, r, http.StatusInternalServerError, nil, h.Log, h.Resource, h.Action, false, err2.Error())
+						return
+					}
+				}
+			}
+		}
 		session := make(map[string]string)
 		session["token"] = user.Token
 		session["azure_token"] = authorization
