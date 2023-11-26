@@ -36,10 +36,12 @@ type AuthenticationHandler struct {
 	Host     string
 	Generate func(ctx context.Context) (string, error)
 	SingleSession bool
+	SId      string
+	Id       string
 }
 
 func NewAuthenticationHandlerWithCache(authenticate func(ctx context.Context, authorization string) (*auth.UserAccount, bool, error), logError func(context.Context, string, ...map[string]interface{}), cache CacheService, generate func(ctx context.Context) (string, error), expired time.Duration, host string, singleSession bool, writeLog func(context.Context, string, string, bool, string) error, options ...string) *AuthenticationHandler {
-	var ip, userId, cookieName, prefixSessionIndex, resource, action, logoutAction string
+	var ip, id, sid, userId, cookieName, prefixSessionIndex, resource, action, logoutAction string
 	if len(options) > 0 {
 		ip = options[0]
 	} else {
@@ -61,21 +63,31 @@ func NewAuthenticationHandlerWithCache(authenticate func(ctx context.Context, au
 		prefixSessionIndex = "index:"
 	}
 	if len(options) > 4 {
-		resource = options[4]
+		sid = options[4]
+	} else {
+		sid = "sid"
+	}
+	if len(options) > 5 {
+		id = options[5]
+	} else {
+		id = "id"
+	}
+	if len(options) > 6 {
+		resource = options[6]
 	} else {
 		resource = "authentication"
 	}
-	if len(options) > 5 {
-		action = options[5]
+	if len(options) > 7 {
+		action = options[7]
 	} else {
 		action = "authenticate"
 	}
-	if len(options) > 6 {
-		logoutAction = options[6]
+	if len(options) > 8 {
+		logoutAction = options[8]
 	} else {
 		logoutAction = "logout"
 	}
-	return &AuthenticationHandler{Auth: authenticate, Resource: resource, Action: action, Error: logError, Ip: ip, UserId: userId, CookieName: cookieName, PrefixSessionIndex: prefixSessionIndex, Log: writeLog, Cache: cache, Generate: generate, Expired: expired, Host: host, LogoutAction: logoutAction}
+	return &AuthenticationHandler{Auth: authenticate, Resource: resource, Action: action, Error: logError, Ip: ip, Id: id, SId: sid, UserId: userId, CookieName: cookieName, PrefixSessionIndex: prefixSessionIndex, Log: writeLog, Cache: cache, Generate: generate, Expired: expired, Host: host, LogoutAction: logoutAction}
 }
 func NewAuthenticationHandler(authenticate func(ctx context.Context, authorization string) (*auth.UserAccount, bool, error), logError func(context.Context, string, ...map[string]interface{}), options ...func(context.Context, string, string, bool, string) error) *AuthenticationHandler {
 	var writeLog func(context.Context, string, string, bool, string) error
@@ -131,7 +143,7 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 					respond(w, r, http.StatusInternalServerError, nil, h.Log, h.Resource, h.Action, false, err.Error())
 					return
 				}
-				sid := GetString(indexData, "sid")
+				sid := GetString(indexData, h.SId)
 				if len(sid) > 0 {
 					_, err2 := h.Cache.Remove(r.Context(), sid)
 					if err2 != nil {
@@ -144,7 +156,7 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 		session := make(map[string]string)
 		session["token"] = user.Token
 		session["azure_token"] = authorization
-		session["id"] = user.Id
+		session[h.Id] = user.Id
 		host := r.Header.Get("Origin")
 		if strings.Contains(host, h.Host) || strings.Contains(host, "localhost") {
 			u, err := url.Parse(host)
@@ -163,7 +175,7 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 		}
 		sessionId = uuid
 		indexData := make(map[string]string)
-		indexData["sid"] = sessionId
+		indexData[h.SId] = sessionId
 		indexData["ip"] = ip
 		indexData["userAgent"] = r.UserAgent()
 		err2 := h.Cache.Put(r.Context(), h.PrefixSessionIndex + user.Id, indexData, h.Expired)
@@ -203,14 +215,14 @@ func (h *AuthenticationHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		respond(w, r, http.StatusOK, expired, h.Log, h.Resource, h.LogoutAction, true, "")
 		return
 	}
-	data, err := GetCookie(r.Context(), cookie.Value, h.Cache.Get)
+	data, err := GetCookie(r.Context(), cookie.Value, h.SId, h.Cache.Get)
 	if err != nil {
 		if err.Error() == "redis: nil" {
 			respond(w, r, http.StatusOK, 1, h.Log, h.Resource, h.LogoutAction, true, err.Error())
 			return
 		}
 	}
-	sessionId := GetString(data, "sid")
+	sessionId := GetString(data, h.SId)
 	if len(sessionId) > 0 {
 		_, err = h.Cache.Remove(r.Context(), sessionId)
 		if err != nil {
@@ -218,7 +230,7 @@ func (h *AuthenticationHandler) Logout(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	userId := GetString(data, "id")
+	userId := GetString(data, h.Id)
 	if len(userId) > 0 {
 		_, err = h.Cache.Remove(r.Context(), h.PrefixSessionIndex + userId)
 		if err != nil {
@@ -248,7 +260,7 @@ func GetString(data map[string]interface{}, key string) string {
 	}
 	return ""
 }
-func GetCookie(ctx context.Context, value string, cache func(context.Context, string) (string, error)) (map[string]interface{}, error) {
+func GetCookie(ctx context.Context, value string, sid string, cache func(context.Context, string) (string, error)) (map[string]interface{}, error) {
 	var data map[string]interface{}
 	s, err := cache(ctx, value)
 	if err != nil {
@@ -260,7 +272,7 @@ func GetCookie(ctx context.Context, value string, cache func(context.Context, st
 			return nil, err
 		}
 	}
-	data["sid"] = value
+	data[sid] = value
 	return data, err
 }
 func respond(w http.ResponseWriter, r *http.Request, code int, result interface{}, writeLog func(context.Context, string, string, bool, string) error, resource string, action string, success bool, desc string) error {

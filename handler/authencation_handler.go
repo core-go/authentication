@@ -28,33 +28,39 @@ type AuthenticationHandler struct {
 	Resource      string
 	Action        string
 	Cookie        bool
+	CookieName    string
 	Host          string
 	Decrypt       func(string) (string, error)
 }
 
 func NewAuthenticationHandlerWithDecrypter(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, timeout int, logError func(context.Context, string, ...map[string]interface{}), addTokenIntoWhitelist func(id string, token string) error, cookie bool, ipFromRequest bool, decrypt func(string) (string, error), writeLog func(context.Context, string, string, bool, string) error, options ...string) *AuthenticationHandler {
-	var ip, userId, resource, action string
-	if len(options) >= 1 {
+	var ip, userId, cookieName, resource, action string
+	if len(options) > 0 {
 		ip = options[0]
 	} else {
 		ip = "ip"
 	}
-	if len(options) >= 2 {
+	if len(options) > 1 {
 		userId = options[1]
 	} else {
 		userId = "userId"
 	}
-	if len(options) >= 3 {
-		resource = options[2]
+	if len(options) > 2 {
+		cookieName = options[2]
+	} else {
+		cookieName = "id"
+	}
+	if len(options) > 3 {
+		resource = options[3]
 	} else {
 		resource = "authentication"
 	}
-	if len(options) >= 4 {
-		action = options[3]
+	if len(options) > 4 {
+		action = options[4]
 	} else {
 		action = "authenticate"
 	}
-	return &AuthenticationHandler{Auth: authenticate, SystemError: systemError, Timeout: timeout, Cookie: cookie, Resource: resource, Action: action, Error: logError, Ip: ip, UserId: userId, Whitelist: addTokenIntoWhitelist, Log: writeLog, Decrypt: decrypt, IpFromRequest: ipFromRequest}
+	return &AuthenticationHandler{Auth: authenticate, SystemError: systemError, Timeout: timeout, Cookie: cookie, CookieName: cookieName, Resource: resource, Action: action, Error: logError, Ip: ip, UserId: userId, Whitelist: addTokenIntoWhitelist, Log: writeLog, Decrypt: decrypt, IpFromRequest: ipFromRequest}
 }
 func NewAuthenticationHandler(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, timeout int, logError func(context.Context, string, ...map[string]interface{}), options ...func(context.Context, string, string, bool, string) error) *AuthenticationHandler {
 	var writeLog func(context.Context, string, string, bool, string) error
@@ -185,7 +191,7 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 				return
 			}
 			http.SetCookie(w, &http.Cookie{
-				Name: "id",
+				Name: h.CookieName,
 				Domain: host,
 				Value: token,
 				HttpOnly: true,

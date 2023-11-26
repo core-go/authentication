@@ -38,14 +38,14 @@ func NewSessionAuthorizer(secretKey string, verifyToken func(tokenString string,
 		prefixSessionIndex = "index:"
 	}
 	if len(opts) > 1 {
-		cookieName = opts[1]
-	} else {
-		cookieName = "id"
-	}
-	if len(opts) > 2 {
-		userId = opts[2]
+		userId = opts[1]
 	} else {
 		userId = "userId"
+	}
+	if len(opts) > 2 {
+		cookieName = opts[2]
+	} else {
+		cookieName = "id"
 	}
 	if len(opts) > 3 {
 		sid = opts[3]
