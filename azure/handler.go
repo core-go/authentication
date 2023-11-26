@@ -38,9 +38,10 @@ type AuthenticationHandler struct {
 	SingleSession bool
 	SId      string
 	Id       string
+	SameSite http.SameSite
 }
 
-func NewAuthenticationHandlerWithCache(authenticate func(ctx context.Context, authorization string) (*auth.UserAccount, bool, error), logError func(context.Context, string, ...map[string]interface{}), cache CacheService, generate func(ctx context.Context) (string, error), expired time.Duration, host string, singleSession bool, writeLog func(context.Context, string, string, bool, string) error, options ...string) *AuthenticationHandler {
+func NewAuthenticationHandlerWithCache(authenticate func(ctx context.Context, authorization string) (*auth.UserAccount, bool, error), logError func(context.Context, string, ...map[string]interface{}), cache CacheService, generate func(ctx context.Context) (string, error), expired time.Duration, host string, sameSite http.SameSite, singleSession bool, writeLog func(context.Context, string, string, bool, string) error, options ...string) *AuthenticationHandler {
 	var ip, id, sid, userId, cookieName, prefixSessionIndex, resource, action, logoutAction string
 	if len(options) > 0 {
 		ip = options[0]
@@ -87,14 +88,14 @@ func NewAuthenticationHandlerWithCache(authenticate func(ctx context.Context, au
 	} else {
 		logoutAction = "logout"
 	}
-	return &AuthenticationHandler{Auth: authenticate, Resource: resource, Action: action, Error: logError, Ip: ip, Id: id, SId: sid, UserId: userId, CookieName: cookieName, PrefixSessionIndex: prefixSessionIndex, Log: writeLog, Cache: cache, Generate: generate, Expired: expired, Host: host, LogoutAction: logoutAction}
+	return &AuthenticationHandler{Auth: authenticate, Resource: resource, Action: action, Error: logError, SameSite: sameSite, SingleSession: singleSession, Ip: ip, Id: id, SId: sid, UserId: userId, CookieName: cookieName, PrefixSessionIndex: prefixSessionIndex, Log: writeLog, Cache: cache, Generate: generate, Expired: expired, Host: host, LogoutAction: logoutAction}
 }
 func NewAuthenticationHandler(authenticate func(ctx context.Context, authorization string) (*auth.UserAccount, bool, error), logError func(context.Context, string, ...map[string]interface{}), options ...func(context.Context, string, string, bool, string) error) *AuthenticationHandler {
 	var writeLog func(context.Context, string, string, bool, string) error
 	if len(options) >= 1 {
 		writeLog = options[0]
 	}
-	return NewAuthenticationHandlerWithCache(authenticate, logError, nil, nil, time.Duration(10 * time.Second), "", true, writeLog, "ip", "userId", "authentication", "authenticate", "logout")
+	return NewAuthenticationHandlerWithCache(authenticate, logError, nil, nil, time.Duration(10 * time.Second), "", http.SameSiteStrictMode, true, writeLog, "ip", "userId", "authentication", "authenticate", "logout")
 }
 
 func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Request) {
@@ -198,7 +199,7 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 			Path:     "/",
 			MaxAge:   0,
 			Expires:  time.Now().Add(h.Expired),
-			SameSite: http.SameSiteStrictMode,
+			SameSite: h.SameSite,
 			Secure:   true,
 		})
 		user.Token = ""

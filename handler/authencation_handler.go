@@ -30,10 +30,11 @@ type AuthenticationHandler struct {
 	Cookie        bool
 	CookieName    string
 	Host          string
+	SameSite      http.SameSite
 	Decrypt       func(string) (string, error)
 }
 
-func NewAuthenticationHandlerWithDecrypter(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, timeout int, logError func(context.Context, string, ...map[string]interface{}), addTokenIntoWhitelist func(id string, token string) error, cookie bool, ipFromRequest bool, decrypt func(string) (string, error), writeLog func(context.Context, string, string, bool, string) error, options ...string) *AuthenticationHandler {
+func NewAuthenticationHandlerWithDecrypter(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, timeout int, logError func(context.Context, string, ...map[string]interface{}), addTokenIntoWhitelist func(id string, token string) error, cookie bool, ipFromRequest bool, sameSite http.SameSite, decrypt func(string) (string, error), writeLog func(context.Context, string, string, bool, string) error, options ...string) *AuthenticationHandler {
 	var ip, userId, cookieName, resource, action string
 	if len(options) > 0 {
 		ip = options[0]
@@ -60,21 +61,21 @@ func NewAuthenticationHandlerWithDecrypter(authenticate func(context.Context, Au
 	} else {
 		action = "authenticate"
 	}
-	return &AuthenticationHandler{Auth: authenticate, SystemError: systemError, Timeout: timeout, Cookie: cookie, CookieName: cookieName, Resource: resource, Action: action, Error: logError, Ip: ip, UserId: userId, Whitelist: addTokenIntoWhitelist, Log: writeLog, Decrypt: decrypt, IpFromRequest: ipFromRequest}
+	return &AuthenticationHandler{Auth: authenticate, SystemError: systemError, Timeout: timeout, SameSite:sameSite, Cookie: cookie, CookieName: cookieName, Resource: resource, Action: action, Error: logError, Ip: ip, UserId: userId, Whitelist: addTokenIntoWhitelist, Log: writeLog, Decrypt: decrypt, IpFromRequest: ipFromRequest}
 }
 func NewAuthenticationHandler(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, timeout int, logError func(context.Context, string, ...map[string]interface{}), options ...func(context.Context, string, string, bool, string) error) *AuthenticationHandler {
 	var writeLog func(context.Context, string, string, bool, string) error
 	if len(options) >= 1 {
 		writeLog = options[0]
 	}
-	return NewAuthenticationHandlerWithDecrypter(authenticate, systemError, timeout, logError, nil, true, true, nil, writeLog, "ip", "userId", "authentication", "authenticate")
+	return NewAuthenticationHandlerWithDecrypter(authenticate, systemError, timeout, logError, nil, true, true, http.SameSiteStrictMode, nil, writeLog, "ip", "userId", "authentication", "authenticate")
 }
 func NewAuthenticationHandlerWithWhitelist(authenticate func(context.Context, AuthInfo) (AuthResult, error), systemError int, timeout int, logError func(context.Context, string, ...map[string]interface{}), addTokenIntoWhitelist func(id string, token string) error, cookie bool, ipFromRequest bool, options ...func(context.Context, string, string, bool, string) error) *AuthenticationHandler {
 	var writeLog func(context.Context, string, string, bool, string) error
 	if len(options) >= 1 {
 		writeLog = options[0]
 	}
-	return NewAuthenticationHandlerWithDecrypter(authenticate, systemError, timeout, logError, addTokenIntoWhitelist, cookie, ipFromRequest, nil, writeLog, "ip", "userId", "authentication", "authenticate")
+	return NewAuthenticationHandlerWithDecrypter(authenticate, systemError, timeout, logError, addTokenIntoWhitelist, cookie, ipFromRequest, http.SameSiteStrictMode, nil, writeLog, "ip", "userId", "authentication", "authenticate")
 }
 
 func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Request) {
@@ -198,7 +199,7 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 				Path: "/",
 				MaxAge: 0,
 				Expires: expired,
-				SameSite: http.SameSiteStrictMode,
+				SameSite: h.SameSite,
 				Secure: true,
 			})
 			result.User.Token = ""
