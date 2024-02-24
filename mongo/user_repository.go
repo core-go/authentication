@@ -122,7 +122,7 @@ func (r *AuthenticationRepository) GetUser(ctx context.Context, auth a.AuthInfo)
 	}
 
 	if len(r.MaxPasswordAgeName) > 0 {
-		if raw.Lookup(r.MaxPasswordAgeName).IsNumber() == true {
+		if raw.Lookup(r.MaxPasswordAgeName).IsNumber() {
 			maxPasswordAge := raw.Lookup(r.MaxPasswordAgeName).Int32()
 			userInfo.MaxPasswordAge = &maxPasswordAge
 		}
@@ -248,8 +248,9 @@ func (r *AuthenticationRepository) getPasswordInfo(ctx context.Context, user *a.
 	return user
 }
 
-func (r *AuthenticationRepository) Pass(ctx context.Context, userId string, deactivated *bool) (int64, error) {
-	return r.passAuthenticationAndActivate(ctx, userId, deactivated)
+func (r *AuthenticationRepository) Pass(ctx context.Context, userId string, deactivated *bool) error {
+	_, err := r.passAuthenticationAndActivate(ctx, userId, deactivated)
+	return err
 }
 
 func (r *AuthenticationRepository) passAuthenticationAndActivate(ctx context.Context, userId string, updateStatus *bool) (int64, error) {
@@ -363,8 +364,8 @@ func insertOne(ctx context.Context, collection *mongo.Collection, model interfac
 	result, err := collection.InsertOne(ctx, model)
 	if err != nil {
 		errMsg := err.Error()
-		if strings.Index(errMsg, "duplicate key error collection:") >= 0 {
-			if strings.Index(errMsg, "dup key: { _id: ") >= 0 {
+		if strings.Contains(errMsg, "duplicate key error collection:") {
+			if strings.Contains(errMsg, "dup key: { _id: ") {
 				return -1, nil
 			} else {
 				return -2, nil

@@ -78,7 +78,7 @@ func NewAuthenticationRepository(client *firestore.Client, userCollectionName, p
 	}
 }
 
-func (r *AuthenticationRepository) GetUserInfo(ctx context.Context, auth a.AuthInfo) (*a.UserInfo, error) {
+func (r *AuthenticationRepository) GetUser(ctx context.Context, auth a.AuthInfo) (*a.UserInfo, error) {
 	userInfo := a.UserInfo{}
 	//query := bson.M{"_id": id}
 	iter := r.UserCollection.Where(r.UserName, "==", auth.Username).Documents(ctx)
@@ -370,8 +370,9 @@ func (r *AuthenticationRepository) GetPasswordInfo(ctx context.Context, id strin
 //	return r.PassAuthentication(ctx, userId)
 //}
 
-func (r *AuthenticationRepository) Pass(ctx context.Context, userId string, deactivated *bool) (int64, error) {
-	return r.passAuthenticationAndActivate(ctx, userId, deactivated)
+func (r *AuthenticationRepository) Pass(ctx context.Context, userId string, deactivated *bool) error {
+	_, err := r.passAuthenticationAndActivate(ctx, userId, deactivated)
+	return err
 }
 
 func (r *AuthenticationRepository) passAuthenticationAndActivate(ctx context.Context, userId string, updateStatus *bool) (int64, error) {

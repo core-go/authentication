@@ -162,13 +162,13 @@ func (r *UserRepository) Update(ctx context.Context, id, email, account string) 
 	return true, nil
 }
 
-func (r *UserRepository) Insert(ctx context.Context, id string, user oauth2.User) (bool, error) {
-	userMap := r.userToMap(ctx, id, user)
+func (r *UserRepository) Insert(ctx context.Context, id string, user *oauth2.User) (bool, error) {
+	userMap := r.userToMap(ctx, id, *user)
 	_, err := r.Collection.Doc(id).Create(ctx, userMap)
 
 	if err != nil {
 		errMsg := err.Error()
-		if strings.Index(errMsg, "Document already exists") >= 0 {
+		if strings.Contains(errMsg, "Document already exists") {
 			return true, nil
 		} else {
 			return false, err

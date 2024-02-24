@@ -206,8 +206,9 @@ func (r *AuthenticationRepository) GetUser(ctx context.Context, user a.AuthInfo)
 	return &userInfo, nil
 }
 
-func (r *AuthenticationRepository) Pass(ctx context.Context, userId string, deactivated *bool) (int64, error) {
-	return r.passAuthenticationAndActivate(ctx, userId, deactivated)
+func (r *AuthenticationRepository) Pass(ctx context.Context, userId string, deactivated *bool) error {
+	_, err := r.passAuthenticationAndActivate(ctx, userId, deactivated)
+	return err
 }
 func (r *AuthenticationRepository) passAuthenticationAndActivate(ctx context.Context, userId string, updateStatus *bool) (int64, error) {
 	session := r.Session

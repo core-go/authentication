@@ -27,7 +27,7 @@ func NewUserRepositoryByConfig(db *mongo.Database, collectionName, prefix string
 		genderMapper = options[0]
 	}
 	if len(c.Username) == 0 {
-		c.Username = "userName"
+		c.Username = "username"
 	}
 	if len(c.Email) == 0 {
 		c.Email = "email"
@@ -148,12 +148,12 @@ func (r *UserRepository) Update(ctx context.Context, id, email, account string) 
 	return result.ModifiedCount+result.UpsertedCount+result.MatchedCount > 0, err
 }
 
-func (r *UserRepository) Insert(ctx context.Context, id string, user oauth2.User) (bool, error) {
-	userMap := r.userToMap(ctx, id, user)
+func (r *UserRepository) Insert(ctx context.Context, id string, user *oauth2.User) (bool, error) {
+	userMap := r.userToMap(ctx, id, *user)
 	_, err := r.Collection.InsertOne(ctx, userMap)
 	if err != nil {
 		errMsg := err.Error()
-		if strings.Index(errMsg, "duplicate key error collection:") >= 0 {
+		if strings.Contains(errMsg, "duplicate key error collection:") {
 			return true, nil
 		} else {
 			return false, err

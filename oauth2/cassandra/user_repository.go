@@ -219,9 +219,9 @@ func (s *UserRepository) Update(ctx context.Context, id, email, account string) 
 	return r > 0, nil
 }
 
-func (s *UserRepository) Insert(ctx context.Context, id string, personInfo oauth2.User) (bool, error) {
+func (s *UserRepository) Insert(ctx context.Context, id string, personInfo *oauth2.User) (bool, error) {
 	session := s.Session
-	user := s.userToMap(ctx, id, personInfo)
+	user := s.userToMap(ctx, id, *personInfo)
 	query, values := BuildQuery(s.TableName, user)
 	result := session.Query(query, values...)
 	if result.Exec() != nil {
