@@ -11,7 +11,7 @@ type SignOutHandler struct {
 	VerifyToken func(tokenString string, secret string) (map[string]interface{}, int64, int64, error)
 	Secret      string
 	RevokeToken func(token string, reason string, expires time.Time) error
-	Error       func(context.Context, string)
+	Error       func(context.Context, string, ...map[string]interface{})
 	Log         func(ctx context.Context, resource string, action string, success bool, desc string) error
 	Resource    string
 	Action      string
@@ -20,14 +20,14 @@ type SignOutHandler struct {
 	CookieDomain string
 }
 
-func NewSignOutHandler(verifyToken func(tokenString string, secret string) (map[string]interface{}, int64, int64, error), secret string, revokeToken func(token string, reason string, expires time.Time) error, logError func(context.Context, string), options...func(context.Context, string, string, bool, string) error) *SignOutHandler {
+func NewSignOutHandler(verifyToken func(tokenString string, secret string) (map[string]interface{}, int64, int64, error), secret string, revokeToken func(token string, reason string, expires time.Time) error, logError func(context.Context, string, ...map[string]interface{}), options...func(context.Context, string, string, bool, string) error) *SignOutHandler {
 	var writeLog func(context.Context, string, string, bool, string) error
 	if len(options) >= 1 {
 		writeLog = options[0]
 	}
 	return NewSignOutHandlerWithLog(verifyToken, secret, revokeToken, logError, writeLog, false, "", "id", "authentication", "signout")
 }
-func NewSignOutHandlerWithLog(verifyToken func(tokenString string, secret string) (map[string]interface{}, int64, int64, error), secret string, revokeToken func(token string, reason string, expires time.Time) error, logError func(context.Context, string), writeLog func(context.Context, string, string, bool, string) error, cookie bool, options ...string) *SignOutHandler {
+func NewSignOutHandlerWithLog(verifyToken func(tokenString string, secret string) (map[string]interface{}, int64, int64, error), secret string, revokeToken func(token string, reason string, expires time.Time) error, logError func(context.Context, string, ...map[string]interface{}), writeLog func(context.Context, string, string, bool, string) error, cookie bool, options ...string) *SignOutHandler {
 	var cookieName, cookieDomain, resource, action string
 	if len(options) > 0 {
 		cookieDomain = options[0]
