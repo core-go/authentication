@@ -8,15 +8,15 @@ import (
 )
 
 type DefaultTokenWhitelistChecker struct {
-	Secret       string
-	TokenIp      string
-	TokenPrefix  string
-	VerifyToken  func(tokenString string, secret string) (map[string]interface{}, int64, int64, error)
-	CacheService CacheService
-	Level        int
+	Secret      string
+	TokenIp     string
+	TokenPrefix string
+	VerifyToken func(tokenString string, secret string) (map[string]interface{}, int64, int64, error)
+	CachePort   CachePort
+	Level       int
 }
 
-func NewTokenWhitelistChecker(secret string, tokenIp string, keyPrefix string, verifyToken func(tokenString string, secret string) (map[string]interface{}, int64, int64, error), cacheService CacheService, level int) *DefaultTokenWhitelistChecker {
+func NewTokenWhitelistChecker(secret string, tokenIp string, keyPrefix string, verifyToken func(tokenString string, secret string) (map[string]interface{}, int64, int64, error), cacheService CachePort, level int) *DefaultTokenWhitelistChecker {
 	return &DefaultTokenWhitelistChecker{secret, tokenIp, keyPrefix, verifyToken, cacheService, level}
 }
 
@@ -42,13 +42,13 @@ func (b *DefaultTokenWhitelistChecker) Add(ctx context.Context, id string, token
 	dur := expire.Sub(now)
 
 	key := b.generateKeyForId(id)
-	return b.CacheService.Put(ctx, key, token, dur)
+	return b.CachePort.Put(ctx, key, token, dur)
 }
 
 func (b *DefaultTokenWhitelistChecker) Check(ctx context.Context, id string, token string) bool {
 	key := b.generateKeyForId(id)
 
-	value, err := b.CacheService.Get(ctx, key)
+	value, err := b.CachePort.Get(ctx, key)
 	if err != nil {
 		return false
 	}

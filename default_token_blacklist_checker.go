@@ -12,10 +12,10 @@ const joinChar = "-"
 type DefaultTokenBlacklistChecker struct {
 	TokenPrefix  string
 	TokenExpires int64
-	CacheService CacheService
+	CachePort    CachePort
 }
 
-func NewTokenBlacklistChecker(keyPrefix string, tokenExpires int64, cacheService CacheService) *DefaultTokenBlacklistChecker {
+func NewTokenBlacklistChecker(keyPrefix string, tokenExpires int64, cacheService CachePort) *DefaultTokenBlacklistChecker {
 	return &DefaultTokenBlacklistChecker{keyPrefix, tokenExpires, cacheService}
 }
 
@@ -41,7 +41,7 @@ func (b *DefaultTokenBlacklistChecker) Revoke(ctx context.Context, token string,
 	if expiresInSecond <= 0 {
 		return nil // Token already expires, don't need add to cache
 	} else {
-		return b.CacheService.Put(ctx, key, value, expiresInSecond*time.Second)
+		return b.CachePort.Put(ctx, key, value, expiresInSecond*time.Second)
 	}
 }
 
@@ -49,7 +49,7 @@ func (b *DefaultTokenBlacklistChecker) RevokeAllTokens(ctx context.Context, id s
 	key := b.generateKeyForId(id)
 	today := time.Now()
 	value := reason + joinChar + strconv.Itoa(int(today.Unix()))
-	return b.CacheService.Put(ctx, key, value, time.Duration(b.TokenExpires)*time.Second)
+	return b.CachePort.Put(ctx, key, value, time.Duration(b.TokenExpires)*time.Second)
 }
 
 func (b *DefaultTokenBlacklistChecker) Check(ctx context.Context, id string, token string, createAt time.Time) string {
@@ -57,7 +57,7 @@ func (b *DefaultTokenBlacklistChecker) Check(ctx context.Context, id string, tok
 	tokenKey := b.generateKey(token)
 
 	keys := []string{idKey, tokenKey}
-	value, _, err := b.CacheService.GetManyStrings(ctx, keys)
+	value, _, err := b.CachePort.GetMany(ctx, keys)
 	if err != nil {
 		return ""
 	}
