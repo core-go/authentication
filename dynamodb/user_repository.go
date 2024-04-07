@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-type AuthenticationRepository struct {
+type UserRepository struct {
 	Db                      *dynamodb.DynamoDB
 	UserTableName           string
 	PasswordTableName       string
@@ -43,16 +43,16 @@ type AuthenticationRepository struct {
 	TwoFactorsName          string
 }
 
-func NewAuthenticationRepositoryByConfig(dynamoDB *dynamodb.DynamoDB, userTableName, passwordTableName string, activatedStatus interface{}, status auth.UserStatusConfig, c auth.SchemaConfig, options ...func(context.Context, string) (bool, error)) *AuthenticationRepository {
-	return NewAuthenticationRepository(dynamoDB, userTableName, passwordTableName, activatedStatus, status, c.Username, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.PasswordChangedTime, c.Password, c.Contact, c.Email, c.Phone, c.DisplayName, c.MaxPasswordAge, c.Roles, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors, options...)
+func NewUserRepositoryByConfig(dynamoDB *dynamodb.DynamoDB, userTableName, passwordTableName string, activatedStatus interface{}, status auth.UserStatusConfig, c auth.SchemaConfig, options ...func(context.Context, string) (bool, error)) *UserRepository {
+	return NewUserRepository(dynamoDB, userTableName, passwordTableName, activatedStatus, status, c.Username, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.PasswordChangedTime, c.Password, c.Contact, c.Email, c.Phone, c.DisplayName, c.MaxPasswordAge, c.Roles, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors, options...)
 }
 
-func NewAuthenticationRepository(dynamoDB *dynamodb.DynamoDB, userTableName, passwordTableName string, activatedStatus interface{}, status auth.UserStatusConfig, userName, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, contactName, emailName, phoneName, displayNameName, maxPasswordAgeName, rolesName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactors string, options ...func(context.Context, string) (bool, error)) *AuthenticationRepository {
+func NewUserRepository(dynamoDB *dynamodb.DynamoDB, userTableName, passwordTableName string, activatedStatus interface{}, status auth.UserStatusConfig, userName, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, contactName, emailName, phoneName, displayNameName, maxPasswordAgeName, rolesName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactors string, options ...func(context.Context, string) (bool, error)) *UserRepository {
 	var checkTwoFactors func(context.Context, string) (bool, error)
 	if len(options) > 0 && options[0] != nil {
 		checkTwoFactors = options[0]
 	}
-	return &AuthenticationRepository{
+	return &UserRepository{
 		Db:                      dynamoDB,
 		UserTableName:           userTableName,
 		PasswordTableName:       passwordTableName,
@@ -82,7 +82,7 @@ func NewAuthenticationRepository(dynamoDB *dynamodb.DynamoDB, userTableName, pas
 	}
 }
 
-func (r *AuthenticationRepository) GetUserInfo(ctx context.Context, username string) (*auth.UserInfo, error) {
+func (r *UserRepository) GetUser(ctx context.Context, username string) (*auth.UserInfo, error) {
 	userInfo := auth.UserInfo{}
 	filter := expression.Equal(expression.Name("_id"), expression.Value(username))
 	expr, _ := expression.NewBuilder().WithFilter(filter).Build()
@@ -101,6 +101,7 @@ func (r *AuthenticationRepository) GetUserInfo(ctx context.Context, username str
 	if er1 != nil {
 		return nil, er1
 	}
+	userInfo.Username = username
 	if len(r.StatusName) > 0 {
 		rawStatus := raw[r.StatusName]
 		status, ok := rawStatus.(string)
@@ -115,42 +116,43 @@ func (r *AuthenticationRepository) GetUserInfo(ctx context.Context, username str
 				}
 			}
 		}
-		userInfo.Deactivated = status == r.Status.Deactivated
+		b := status == r.Status.Deactivated
+		userInfo.Deactivated = &b
 		userInfo.Suspended = status == r.Status.Suspended
 		userInfo.Disable = status == r.Status.Disable
 	}
 
 	if len(r.ContactName) > 0 {
 		if contact, ok := raw[r.ContactName].(string); ok {
-			userInfo.Contact = contact
+			userInfo.Contact = &contact
 		}
 	}
 	if len(r.EmailName) > 0 {
 		if email, ok := raw[r.EmailName].(string); ok {
-			userInfo.Email = email
+			userInfo.Email = &email
 		}
 	}
 	if len(r.PhoneName) > 0 {
 		if phone, ok := raw[r.PhoneName].(string); ok {
-			userInfo.Phone = phone
+			userInfo.Phone = &phone
 		}
 	}
 
 	if len(r.DisplayNameName) > 0 {
 		if displayName, ok := raw[r.DisplayNameName].(string); ok {
-			userInfo.DisplayName = displayName
+			userInfo.DisplayName = &displayName
 		}
 	}
 
 	if len(r.MaxPasswordAgeName) > 0 {
 		if maxPasswordAgeName, ok := raw[r.MaxPasswordAgeName].(int32); ok {
-			userInfo.MaxPasswordAge = maxPasswordAgeName
+			userInfo.MaxPasswordAge = &maxPasswordAgeName
 		}
 	}
 
 	if len(r.UserTypeName) > 0 {
 		if userType, ok := raw[r.UserTypeName].(string); ok {
-			userInfo.UserType = userType
+			userInfo.UserType = &userType
 		}
 	}
 
@@ -236,7 +238,7 @@ func getTime(accessTime string) *time.Time {
 	return nil
 }
 
-func (r *AuthenticationRepository) getPasswordInfo(ctx context.Context, user *auth.UserInfo, raw map[string]interface{}) *auth.UserInfo {
+func (r *UserRepository) getPasswordInfo(ctx context.Context, user *auth.UserInfo, raw map[string]interface{}) *auth.UserInfo {
 	if len(r.PasswordName) > 0 {
 		if pass, ok := raw[r.PasswordName].(string); ok {
 			user.Password = pass
@@ -263,7 +265,8 @@ func (r *AuthenticationRepository) getPasswordInfo(ctx context.Context, user *au
 
 	if len(r.FailCountName) > 0 {
 		if failCountName, ok := raw[r.FailCountName].(int32); ok {
-			user.FailCount = int(failCountName)
+			i := int(failCountName)
+			user.FailCount = &i
 		}
 	}
 
@@ -275,15 +278,16 @@ func (r *AuthenticationRepository) getPasswordInfo(ctx context.Context, user *au
 	return user
 }
 
-func (r *AuthenticationRepository) Pass(ctx context.Context, userId string) (int64, error) {
-	return r.passAuthenticationAndActivate(ctx, userId, false)
+func (r *UserRepository) Pass(ctx context.Context, userId string) error {
+	_, err := r.passAuthenticationAndActivate(ctx, userId, false)
+	return err
 }
 
-func (r *AuthenticationRepository) PassAndActivate(ctx context.Context, userId string) (int64, error) {
+func (r *UserRepository) PassAndActivate(ctx context.Context, userId string) (int64, error) {
 	return r.passAuthenticationAndActivate(ctx, userId, true)
 }
 
-func (r *AuthenticationRepository) passAuthenticationAndActivate(ctx context.Context, userId string, updateStatus bool) (int64, error) {
+func (r *UserRepository) passAuthenticationAndActivate(ctx context.Context, userId string, updateStatus bool) (int64, error) {
 	if len(r.SuccessTimeName) == 0 && len(r.FailCountName) == 0 && len(r.LockedUntilTimeName) == 0 {
 		if !updateStatus || len(r.StatusName) == 0 {
 			return 0, nil
@@ -318,7 +322,7 @@ func (r *AuthenticationRepository) passAuthenticationAndActivate(ctx context.Con
 	return k1 + k2, er2
 }
 
-func (r *AuthenticationRepository) Fail(ctx context.Context, userId string, failCount int, lockedUntil *time.Time) error {
+func (r *UserRepository) Fail(ctx context.Context, userId string, failCount *int, lockedUntil *time.Time) error {
 	if len(r.FailTimeName) == 0 && len(r.FailCountName) == 0 && len(r.LockedUntilTimeName) == 0 {
 		return nil
 	}
@@ -327,8 +331,8 @@ func (r *AuthenticationRepository) Fail(ctx context.Context, userId string, fail
 	if len(r.FailTimeName) > 0 {
 		pass[r.FailTimeName] = time.Now()
 	}
-	if len(r.FailCountName) > 0 {
-		pass[r.FailCountName] = failCount
+	if len(r.FailCountName) > 0 && failCount != nil {
+		pass[r.FailCountName] = *failCount + 1
 		if len(r.LockedUntilTimeName) > 0 {
 			pass[r.LockedUntilTimeName] = lockedUntil
 		}

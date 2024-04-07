@@ -46,9 +46,9 @@ func NewUserRepository(db *sql.DB, query string, conf DBConfig, status a.UserSta
 	}
 	return &SqlUserRepository{DB: db, Query: query, Driver: driver, userFields: userFields, Param: param, Conf: conf, Status:  status}, nil
 }
-func (l SqlUserRepository) GetUser(ctx context.Context, auth a.AuthInfo) (*a.UserInfo, error) {
+func (l SqlUserRepository) GetUser(ctx context.Context, username string) (*a.UserInfo, error) {
 	var models []a.UserInfo
-	_, err := queryWithMap(ctx, l.DB, l.userFields, &models, l.Query, auth.Username)
+	_, err := queryWithMap(ctx, l.DB, l.userFields, &models, l.Query, username)
 	if err != nil {
 		return nil, err
 	}

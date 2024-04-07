@@ -11,7 +11,7 @@ import (
 	"github.com/gocql/gocql"
 )
 
-type AuthenticationRepository struct {
+type UserRepository struct {
 	Session                 *gocql.Session
 	userTableName           string
 	passwordTableName       string
@@ -41,16 +41,16 @@ type AuthenticationRepository struct {
 	TwoFactorsName          string
 }
 
-func NewAuthenticationRepositoryByConfig(session *gocql.Session, userTableName, passwordTableName string, activatedStatus string, status a.UserStatusConfig, c a.SchemaConfig, options ...func(context.Context, string) (bool, error)) *AuthenticationRepository {
-	return NewAuthenticationRepository(session, userTableName, passwordTableName, activatedStatus, status, c.Id, c.Username, c.UserId, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.PasswordChangedTime, c.Password, c.Contact, c.Email, c.Phone, c.DisplayName, c.MaxPasswordAge, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors, options...)
+func NewUserRepositoryByConfig(session *gocql.Session, userTableName, passwordTableName string, activatedStatus string, status a.UserStatusConfig, c a.SchemaConfig, options ...func(context.Context, string) (bool, error)) *UserRepository {
+	return NewUserRepository(session, userTableName, passwordTableName, activatedStatus, status, c.Id, c.Username, c.UserId, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.PasswordChangedTime, c.Password, c.Contact, c.Email, c.Phone, c.DisplayName, c.MaxPasswordAge, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors, options...)
 }
 
-func NewAuthenticationRepository(session *gocql.Session, userTableName, passwordTableName string, activatedStatus string, status a.UserStatusConfig, idName, userName, userID, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, contactName, emailName, phoneName, displayNameName, maxPasswordAgeName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string, options ...func(context.Context, string) (bool, error)) *AuthenticationRepository {
+func NewUserRepository(session *gocql.Session, userTableName, passwordTableName string, activatedStatus string, status a.UserStatusConfig, idName, userName, userID, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, contactName, emailName, phoneName, displayNameName, maxPasswordAgeName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string, options ...func(context.Context, string) (bool, error)) *UserRepository {
 	var checkTwoFactors func(context.Context, string) (bool, error)
 	if len(options) >= 1 {
 		checkTwoFactors = options[0]
 	}
-	return &AuthenticationRepository{
+	return &UserRepository{
 		Session:                 session,
 		userTableName:           strings.ToLower(userTableName),
 		passwordTableName:       strings.ToLower(passwordTableName),
@@ -81,11 +81,12 @@ func NewAuthenticationRepository(session *gocql.Session, userTableName, password
 	}
 }
 
-func (r *AuthenticationRepository) GetUser(ctx context.Context, user a.AuthInfo) (*a.UserInfo, error) {
+func (r *UserRepository) GetUser(ctx context.Context, username string) (*a.UserInfo, error) {
 	session := r.Session
 	userInfo := a.UserInfo{}
 	query := "SELECT * FROM " + r.userTableName + " WHERE " + r.UserName + " = ? ALLOW FILTERING"
-	raws := session.Query(query, user.Username).Iter()
+	raws := session.Query(query, username).Iter()
+	userInfo.Username = username
 	for {
 		// New map each iteration
 		row := make(map[string]interface{})
@@ -206,11 +207,11 @@ func (r *AuthenticationRepository) GetUser(ctx context.Context, user a.AuthInfo)
 	return &userInfo, nil
 }
 
-func (r *AuthenticationRepository) Pass(ctx context.Context, userId string, deactivated *bool) error {
+func (r *UserRepository) Pass(ctx context.Context, userId string, deactivated *bool) error {
 	_, err := r.passAuthenticationAndActivate(ctx, userId, deactivated)
 	return err
 }
-func (r *AuthenticationRepository) passAuthenticationAndActivate(ctx context.Context, userId string, updateStatus *bool) (int64, error) {
+func (r *UserRepository) passAuthenticationAndActivate(ctx context.Context, userId string, updateStatus *bool) (int64, error) {
 	session := r.Session
 	if len(r.SuccessTimeName) == 0 && len(r.FailCountName) == 0 && len(r.LockedUntilTimeName) == 0 {
 		if updateStatus != nil && !*updateStatus {
@@ -253,7 +254,7 @@ func (r *AuthenticationRepository) passAuthenticationAndActivate(ctx context.Con
 	return k1 + k2, err1
 }
 
-func (r *AuthenticationRepository) Fail(ctx context.Context, userId string, failCount *int, lockedUntil *time.Time) error {
+func (r *UserRepository) Fail(ctx context.Context, userId string, failCount *int, lockedUntil *time.Time) error {
 	if len(r.FailTimeName) == 0 && len(r.FailCountName) == 0 && len(r.LockedUntilTimeName) == 0 {
 		return nil
 	}

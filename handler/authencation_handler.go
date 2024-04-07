@@ -181,7 +181,7 @@ func NewAuthenticationHandler(authenticate func(context.Context, a.AuthInfo) (a.
 		writeLog = options[0]
 	}
 	return NewAuthenticationHandlerWithDecrypter(authenticate, systemError, timeout, logError,
-		nil, true, true, http.SameSiteStrictMode, nil, writeLog,
+		nil, false, true, http.SameSiteStrictMode, nil, writeLog,
 		"ip", "userId", "id", "authentication", "authenticate")
 }
 

@@ -139,7 +139,7 @@ func (s *Authenticator) Authenticate(ctx context.Context, info AuthInfo) (AuthRe
 		}
 	}
 
-	user, er1 := s.Repository.GetUser(ctx, info)
+	user, er1 := s.Repository.GetUser(ctx, info.Username)
 	if er1 != nil {
 		return result, er1
 	}
