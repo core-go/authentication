@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"strconv"
 	"strings"
 	"time"
@@ -26,7 +27,7 @@ func (b *DefaultTokenBlacklistChecker) generateKeyForId(id string) string {
 	return b.TokenPrefix + "::token::" + id
 }
 
-func (b *DefaultTokenBlacklistChecker) Revoke(token string, reason string, expiredDate time.Time) error {
+func (b *DefaultTokenBlacklistChecker) Revoke(ctx context.Context, token string, reason string, expiredDate time.Time) error {
 	key := b.generateKey(token)
 	var value string
 	if len(reason) > 0 {
@@ -40,23 +41,23 @@ func (b *DefaultTokenBlacklistChecker) Revoke(token string, reason string, expir
 	if expiresInSecond <= 0 {
 		return nil // Token already expires, don't need add to cache
 	} else {
-		return b.CacheService.Put(key, value, expiresInSecond*time.Second)
+		return b.CacheService.Put(ctx, key, value, expiresInSecond*time.Second)
 	}
 }
 
-func (b *DefaultTokenBlacklistChecker) RevokeAllTokens(id string, reason string) error {
+func (b *DefaultTokenBlacklistChecker) RevokeAllTokens(ctx context.Context, id string, reason string) error {
 	key := b.generateKeyForId(id)
 	today := time.Now()
 	value := reason + joinChar + strconv.Itoa(int(today.Unix()))
-	return b.CacheService.Put(key, value, time.Duration(b.TokenExpires)*time.Second)
+	return b.CacheService.Put(ctx, key, value, time.Duration(b.TokenExpires)*time.Second)
 }
 
-func (b *DefaultTokenBlacklistChecker) Check(id string, token string, createAt time.Time) string {
+func (b *DefaultTokenBlacklistChecker) Check(ctx context.Context, id string, token string, createAt time.Time) string {
 	idKey := b.generateKeyForId(id)
 	tokenKey := b.generateKey(token)
 
 	keys := []string{idKey, tokenKey}
-	value, _, err := b.CacheService.GetManyStrings(keys)
+	value, _, err := b.CacheService.GetManyStrings(ctx, keys)
 	if err != nil {
 		return ""
 	}

@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"strconv"
 	"time"
@@ -27,7 +28,7 @@ func (b *DefaultTokenWhitelistChecker) generateKeyForId(id string) string {
 	return b.TokenPrefix + "::token::" + id
 }
 
-func (b *DefaultTokenWhitelistChecker) Add(id string, token string) error {
+func (b *DefaultTokenWhitelistChecker) Add(ctx context.Context, id string, token string) error {
 	_, _, eta, err := b.VerifyToken(token, b.Secret)
 	if err != nil {
 		return err
@@ -41,37 +42,35 @@ func (b *DefaultTokenWhitelistChecker) Add(id string, token string) error {
 	dur := expire.Sub(now)
 
 	key := b.generateKeyForId(id)
-	return b.CacheService.Put(key, token, dur)
+	return b.CacheService.Put(ctx, key, token, dur)
 }
 
-func (b *DefaultTokenWhitelistChecker) Check(id string, token string) bool {
+func (b *DefaultTokenWhitelistChecker) Check(ctx context.Context, id string, token string) bool {
 	key := b.generateKeyForId(id)
 
-	value, err := b.CacheService.Get(key)
+	value, err := b.CacheService.Get(ctx, key)
 	if err != nil {
 		return false
 	}
-	if value != nil {
-		if tokenStore, ok := value.(string); ok {
-			tokenStore, _ := strconv.Unquote(tokenStore)
-			if b.Level != 0 {
-				if tokenStore != token {
-					return false
-				}
-				return true
-			}
-
-			payloadStore, _, _, err1 := b.VerifyToken(tokenStore, b.Secret)
-			payload, _, _, err2 := b.VerifyToken(token, b.Secret)
-			if err1 != nil || err2 != nil {
+	if len(value) > 0 {
+		tokenStore, _ := strconv.Unquote(value)
+		if b.Level != 0 {
+			if tokenStore != token {
 				return false
 			}
-			ipStore, ok1 := payloadStore[b.TokenIp]
-			ip, ok2 := payload[b.TokenIp]
-			if ok1 && ok2 {
-				if ip == ipStore {
-					return true
-				}
+			return true
+		}
+
+		payloadStore, _, _, err1 := b.VerifyToken(tokenStore, b.Secret)
+		payload, _, _, err2 := b.VerifyToken(token, b.Secret)
+		if err1 != nil || err2 != nil {
+			return false
+		}
+		ipStore, ok1 := payloadStore[b.TokenIp]
+		ip, ok2 := payload[b.TokenIp]
+		if ok1 && ok2 {
+			if ip == ipStore {
+				return true
 			}
 		}
 	}
