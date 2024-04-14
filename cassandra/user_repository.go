@@ -44,7 +44,9 @@ type UserRepository struct {
 func NewUserRepositoryByConfig(session *gocql.Session, userTableName, passwordTableName string, activatedStatus string, status a.UserStatusConfig, c a.SchemaConfig, options ...func(context.Context, string) (bool, error)) *UserRepository {
 	return NewUserRepository(session, userTableName, passwordTableName, activatedStatus, status, c.Id, c.Username, c.UserId, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.PasswordChangedTime, c.Password, c.Contact, c.Email, c.Phone, c.DisplayName, c.MaxPasswordAge, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors, options...)
 }
-
+func NewUserAdapterByConfig(session *gocql.Session, userTableName, passwordTableName string, activatedStatus string, status a.UserStatusConfig, c a.SchemaConfig, options ...func(context.Context, string) (bool, error)) *UserRepository {
+	return NewUserRepositoryByConfig(session, userTableName, passwordTableName, activatedStatus, status, c, options...)
+}
 func NewUserRepository(session *gocql.Session, userTableName, passwordTableName string, activatedStatus string, status a.UserStatusConfig, idName, userName, userID, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, contactName, emailName, phoneName, displayNameName, maxPasswordAgeName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string, options ...func(context.Context, string) (bool, error)) *UserRepository {
 	var checkTwoFactors func(context.Context, string) (bool, error)
 	if len(options) >= 1 {

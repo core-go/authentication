@@ -45,7 +45,12 @@ type MongoUserRepository struct {
 func NewUserRepositoryByConfig(db *mongo.Database, userCollectionName, passwordCollectionName string, activatedStatus interface{}, status a.UserStatusConfig, c a.SchemaConfig, options ...func(context.Context, string) (bool, error)) *MongoUserRepository {
 	return NewUserRepository(db, userCollectionName, passwordCollectionName, activatedStatus, status, c.Username, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.PasswordChangedTime, c.Password, c.Contact, c.Email, c.Phone, c.DisplayName, c.MaxPasswordAge, c.Roles, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors, options...)
 }
-
+func NewUserAdapterByConfig(db *mongo.Database, userCollectionName, passwordCollectionName string, activatedStatus interface{}, status a.UserStatusConfig, c a.SchemaConfig, options ...func(context.Context, string) (bool, error)) *MongoUserRepository {
+	return NewUserRepositoryByConfig(db, userCollectionName, passwordCollectionName, activatedStatus, status, c, options...)
+}
+func NewUserAdapter(db *mongo.Database, userCollectionName, passwordCollectionName string, activatedStatus interface{}, status a.UserStatusConfig, userName, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, contactName, emailName, phoneName, displayNameName, maxPasswordAgeName, rolesName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string, options ...func(context.Context, string) (bool, error)) *MongoUserRepository {
+	return NewUserRepository(db, userCollectionName, passwordCollectionName, activatedStatus, status, userName, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, contactName, emailName, phoneName, displayNameName, maxPasswordAgeName, rolesName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName, options...)
+}
 func NewUserRepository(db *mongo.Database, userCollectionName, passwordCollectionName string, activatedStatus interface{}, status a.UserStatusConfig, userName, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, contactName, emailName, phoneName, displayNameName, maxPasswordAgeName, rolesName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactorsName string, options ...func(context.Context, string) (bool, error)) *MongoUserRepository {
 	passwordCollection := db.Collection(passwordCollectionName)
 	userCollection := passwordCollection

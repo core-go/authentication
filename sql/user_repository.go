@@ -21,7 +21,9 @@ type SqlUserRepository struct {
 	Param          func(int) string
 	Conf           DBConfig
 }
-
+func NewUserAdapter(db *sql.DB, query string, conf DBConfig, status a.UserStatusConfig, options ...bool) (*SqlUserRepository, error) {
+	return NewUserRepository(db, query, conf, status, options...)
+}
 func NewUserRepository(db *sql.DB, query string, conf DBConfig, status a.UserStatusConfig, options ...bool) (*SqlUserRepository, error) {
 	var handleDriver bool
 	if len(options) >= 1 {

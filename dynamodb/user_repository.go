@@ -46,7 +46,9 @@ type UserRepository struct {
 func NewUserRepositoryByConfig(dynamoDB *dynamodb.DynamoDB, userTableName, passwordTableName string, activatedStatus interface{}, status auth.UserStatusConfig, c auth.SchemaConfig, options ...func(context.Context, string) (bool, error)) *UserRepository {
 	return NewUserRepository(dynamoDB, userTableName, passwordTableName, activatedStatus, status, c.Username, c.SuccessTime, c.FailTime, c.FailCount, c.LockedUntilTime, c.Status, c.PasswordChangedTime, c.Password, c.Contact, c.Email, c.Phone, c.DisplayName, c.MaxPasswordAge, c.Roles, c.UserType, c.AccessDateFrom, c.AccessDateTo, c.AccessTimeFrom, c.AccessTimeTo, c.TwoFactors, options...)
 }
-
+func NewUserAdapterByConfig(dynamoDB *dynamodb.DynamoDB, userTableName, passwordTableName string, activatedStatus interface{}, status auth.UserStatusConfig, c auth.SchemaConfig, options ...func(context.Context, string) (bool, error)) *UserRepository {
+	return NewUserRepositoryByConfig(dynamoDB, userTableName, passwordTableName, activatedStatus, status, c, options...)
+}
 func NewUserRepository(dynamoDB *dynamodb.DynamoDB, userTableName, passwordTableName string, activatedStatus interface{}, status auth.UserStatusConfig, userName, successTimeName, failTimeName, failCountName, lockedUntilTimeName, statusName, passwordChangedTimeName, passwordName, contactName, emailName, phoneName, displayNameName, maxPasswordAgeName, rolesName, userTypeName, accessDateFromName, accessDateToName, accessTimeFromName, accessTimeToName, twoFactors string, options ...func(context.Context, string) (bool, error)) *UserRepository {
 	var checkTwoFactors func(context.Context, string) (bool, error)
 	if len(options) > 0 && options[0] != nil {

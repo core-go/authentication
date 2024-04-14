@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-type PrivilegesLoader struct {
+type PrivilegesAdapter struct {
 	DB             *sql.DB
 	Query          string
 	ParameterCount int
@@ -19,16 +19,16 @@ type PrivilegesLoader struct {
 	moduleFields   map[string]int
 }
 
-func NewPrivilegesLoader(db *sql.DB, query string, options ...int) (*PrivilegesLoader, error) {
+func NewPrivilegesAdapter(db *sql.DB, query string, options ...int) (*PrivilegesAdapter, error) {
 	var parameterCount int
 	if len(options) >= 1 && options[0] > 0 {
 		parameterCount = options[0]
 	} else {
 		parameterCount = 0
 	}
-	return NewSqlPrivilegesLoader(db, query, parameterCount, false, true, true)
+	return NewSqlPrivilegesAdapter(db, query, parameterCount, false, true, true)
 }
-func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int, options ...bool) (*PrivilegesLoader, error) {
+func NewSqlPrivilegesAdapter(db *sql.DB, query string, parameterCount int, options ...bool) (*PrivilegesAdapter, error) {
 	var or, handleDriver, noSequence bool
 	if len(options) >= 1 {
 		or = options[0]
@@ -55,9 +55,9 @@ func NewSqlPrivilegesLoader(db *sql.DB, query string, parameterCount int, option
 	if err != nil {
 		return nil, err
 	}
-	return &PrivilegesLoader{DB: db, Query: query, ParameterCount: parameterCount, Or: or, NoSequence: noSequence, HandleDriver: handleDriver, Driver: driver, moduleFields: moduleFields}, nil
+	return &PrivilegesAdapter{DB: db, Query: query, ParameterCount: parameterCount, Or: or, NoSequence: noSequence, HandleDriver: handleDriver, Driver: driver, moduleFields: moduleFields}, nil
 }
-func (l PrivilegesLoader) Load(ctx context.Context, id string) ([]auth.Privilege, error) {
+func (l PrivilegesAdapter) Load(ctx context.Context, id string) ([]auth.Privilege, error) {
 	var models []auth.Module
 	p0 := make([]auth.Privilege, 0)
 	params := make([]interface{}, 0)
