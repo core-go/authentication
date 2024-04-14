@@ -307,6 +307,9 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 				return
 			}
 			ip := getForwardedRemoteIp(r)
+			if len(ip) == 0 {
+				ip = getRemoteIp(r)
+			}
 			if len(h.Ip) > 0 {
 				ctx = context.WithValue(ctx, h.Ip, ip)
 				r = r.WithContext(ctx)
