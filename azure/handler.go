@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/core-go/auth"
+	auth "github.com/core-go/authentication"
 )
 
 const internalServerError = "Internal Server Error"

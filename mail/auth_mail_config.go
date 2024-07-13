@@ -1,7 +1,7 @@
 package mail
 
 import (
-	"github.com/core-go/auth"
+	auth "github.com/core-go/authentication"
 	"github.com/core-go/mail"
 )
 

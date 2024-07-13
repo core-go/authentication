@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	a "github.com/core-go/auth"
+	a "github.com/core-go/authentication"
 )
 
 const expired = "Token is expired"

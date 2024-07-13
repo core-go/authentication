@@ -10,12 +10,12 @@
 Please make sure to initialize a Go module before installing core-go/auth:
 
 ```shell
-go get -u github.com/core-go/auth
+go get -u github.com/core-go/authentication
 ```
 
 Import:
 ```go
-import "github.com/core-go/auth"
+import "github.com/core-go/authentication"
 ```
 
 ## Models

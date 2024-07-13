@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/core-go/auth"
+	auth "github.com/core-go/authentication"
 	"reflect"
 	"strconv"
 	"strings"
@@ -415,13 +415,15 @@ func getTime(accessTime string) *time.Time {
 	return nil
 }
 
-/*func patch(db *gorm.DB, table string, model map[string]interface{}, query map[string]interface{}) (int64, error) {
-	result := db.Table(table).Where(query).Updates(model)
-	if err := result.Error; err != nil {
-		return result.RowsAffected, err
+/*
+	func patch(db *gorm.DB, table string, model map[string]interface{}, query map[string]interface{}) (int64, error) {
+		result := db.Table(table).Where(query).Updates(model)
+		if err := result.Error; err != nil {
+			return result.RowsAffected, err
+		}
+		return result.RowsAffected, nil
 	}
-	return result.RowsAffected, nil
-}*/
+*/
 func patch(ctx context.Context, db *sql.DB, table string, model map[string]interface{}, query map[string]interface{}) (int64, error) {
 	objectUpdate := ""
 	objectUpdateValue := ""

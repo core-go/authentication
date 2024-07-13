@@ -3,7 +3,7 @@ package sql
 import (
 	"context"
 	"database/sql"
-	"github.com/core-go/auth"
+	auth "github.com/core-go/authentication"
 	"reflect"
 	"strings"
 )

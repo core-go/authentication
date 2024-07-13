@@ -1,6 +1,6 @@
 package sql
 
-import "github.com/core-go/auth"
+import auth "github.com/core-go/authentication"
 
 type DBConfig struct {
 	Id              string `yaml:"id" mapstructure:"id" json:"id,omitempty" gorm:"column:id" bson:"id,omitempty" dynamodbav:"id,omitempty" firestore:"id,omitempty"`

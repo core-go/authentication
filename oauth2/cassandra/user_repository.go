@@ -6,8 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/core-go/auth"
-	"github.com/core-go/auth/oauth2"
+	"github.com/core-go/authentication/oauth2"
 	"github.com/gocql/gocql"
 )
 
@@ -18,10 +17,10 @@ type UserRepository struct {
 	ActivatedStatus string
 	Services        []string
 
-	Status          *auth.UserStatusConfig
-	GenderMapper    oauth2.OAuth2GenderMapper
-	Schema          *oauth2.OAuth2SchemaConfig
-	BuildParam      func(i int) string
+	Status       *auth.UserStatusConfig
+	GenderMapper oauth2.OAuth2GenderMapper
+	Schema       *oauth2.OAuth2SchemaConfig
+	BuildParam   func(i int) string
 }
 
 func NewUserRepositoryByConfig(session *gocql.Session, tableName, prefix string, activatedStatus string, services []string, c oauth2.OAuth2SchemaConfig, status *auth.UserStatusConfig, options ...oauth2.OAuth2GenderMapper) *UserRepository {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	a "github.com/core-go/auth"
+	a "github.com/core-go/authentication"
 	"reflect"
 	"strings"
 	"time"
@@ -21,6 +21,7 @@ type SqlUserRepository struct {
 	Param          func(int) string
 	Conf           DBConfig
 }
+
 func NewUserAdapter(db *sql.DB, query string, conf DBConfig, status a.UserStatusConfig, options ...bool) (*SqlUserRepository, error) {
 	return NewUserRepository(db, query, conf, status, options...)
 }
@@ -46,7 +47,7 @@ func NewUserRepository(db *sql.DB, query string, conf DBConfig, status a.UserSta
 	if err != nil {
 		return nil, err
 	}
-	return &SqlUserRepository{DB: db, Query: query, Driver: driver, userFields: userFields, Param: param, Conf: conf, Status:  status}, nil
+	return &SqlUserRepository{DB: db, Query: query, Driver: driver, userFields: userFields, Param: param, Conf: conf, Status: status}, nil
 }
 func (l SqlUserRepository) GetUser(ctx context.Context, username string) (*a.UserInfo, error) {
 	var models []a.UserInfo

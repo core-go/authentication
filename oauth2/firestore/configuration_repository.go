@@ -6,7 +6,7 @@ import (
 	"google.golang.org/api/iterator"
 	"strings"
 
-	"github.com/core-go/auth/oauth2"
+	"github.com/core-go/authentication/oauth2"
 )
 
 type ConfigurationRepository struct {

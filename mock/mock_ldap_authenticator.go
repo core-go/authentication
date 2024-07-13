@@ -2,8 +2,7 @@ package mock
 
 import (
 	"context"
-	"github.com/core-go/auth"
-	l "github.com/core-go/auth/ldap"
+	l "github.com/core-go/authentication/ldap"
 	"strings"
 )
 
@@ -17,6 +16,7 @@ type MockLDAPAuthenticator struct {
 type IAuthenticator interface {
 	Authenticate(ctx context.Context, info auth.AuthInfo) (auth.AuthResult, error)
 }
+
 func NewDAPAuthenticatorByConfig(conf l.LDAPConfig, status auth.Status) (IAuthenticator, error) {
 	s := conf.Users
 	if len(s) > 0 {

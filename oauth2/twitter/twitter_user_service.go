@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/core-go/auth/oauth2"
+	"github.com/core-go/authentication/oauth2"
 )
 
 type TwitterUserRepository struct {

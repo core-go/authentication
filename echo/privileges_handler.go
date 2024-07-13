@@ -2,7 +2,7 @@ package echo
 
 import (
 	"context"
-	a "github.com/core-go/auth"
+	a "github.com/core-go/authentication"
 	"github.com/labstack/echo/v4"
 	"net/http"
 )

@@ -3,7 +3,7 @@ package cassandra
 import (
 	"context"
 	"fmt"
-	"github.com/core-go/auth/oauth2"
+	"github.com/core-go/authentication/oauth2"
 	"github.com/gocql/gocql"
 	"reflect"
 )

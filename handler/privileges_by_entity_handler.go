@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	. "github.com/core-go/auth"
+	. "github.com/core-go/authentication"
 )
 
 type PrivilegesByEntityHandler struct {

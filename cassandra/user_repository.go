@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	a "github.com/core-go/auth"
+	a "github.com/core-go/authentication"
 	"github.com/gocql/gocql"
 )
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/core-go/auth/azure"
+	"github.com/core-go/authentication/azure"
 	"reflect"
 	"strconv"
 	"strings"

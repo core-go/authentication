@@ -2,7 +2,7 @@ package gin
 
 import (
 	"context"
-	a "github.com/core-go/auth"
+	a "github.com/core-go/authentication"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strings"

@@ -6,7 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
-	"github.com/core-go/auth/oauth2"
+	"github.com/core-go/authentication/oauth2"
 )
 
 type ConfigurationRepository struct {

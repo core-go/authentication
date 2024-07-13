@@ -6,12 +6,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
-	"github.com/core-go/auth"
 	dyn "github.com/core-go/dynamodb"
 	"strings"
 	"time"
 
-	"github.com/core-go/auth/oauth2"
+	"github.com/core-go/authentication/oauth2"
 )
 
 type UserRepository struct {
@@ -21,9 +20,9 @@ type UserRepository struct {
 	ActivatedStatus string
 	Services        []string
 
-	Status          *auth.UserStatusConfig
-	GenderMapper    oauth2.OAuth2GenderMapper
-	Schema          *oauth2.OAuth2SchemaConfig
+	Status       *auth.UserStatusConfig
+	GenderMapper oauth2.OAuth2GenderMapper
+	Schema       *oauth2.OAuth2SchemaConfig
 }
 
 func NewUserRepositoryByConfig(db *dynamodb.DynamoDB, userTableName, prefix string, activatedStatus string, services []string, c oauth2.OAuth2SchemaConfig, status *auth.UserStatusConfig, options ...oauth2.OAuth2GenderMapper) *UserRepository {
@@ -164,8 +163,8 @@ func (r *UserRepository) Update(ctx context.Context, id, email, account string) 
 		user[r.Schema.UpdatedBy] = id
 	}
 
-	result, err:=  dyn.PatchOne(ctx,r.DB,r.UserTableName,[]string{"id"},user)
-	return result > 0 , err
+	result, err := dyn.PatchOne(ctx, r.DB, r.UserTableName, []string{"id"}, user)
+	return result > 0, err
 
 }
 

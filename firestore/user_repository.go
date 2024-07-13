@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	a "github.com/core-go/auth"
+	a "github.com/core-go/authentication"
 	"google.golang.org/api/iterator"
 	"strconv"
 	"time"

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/core-go/auth"
+	auth "github.com/core-go/authentication"
 	"github.com/golang-jwt/jwt"
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
@@ -42,14 +42,16 @@ func NewAzureAuthenticator(
 	config Config,
 	tokenConfig auth.TokenConfig,
 	privileges func(ctx context.Context, id string) ([]auth.Privilege, error),
-	id            string,
+	id string,
 ) *Authenticator {
 	if len(id) == 0 {
 		id = "id"
 	}
-	return &Authenticator{getUserByToken, userPort,privileges, generateToken, tokenConfig, config, id}
+	return &Authenticator{getUserByToken, userPort, privileges, generateToken, tokenConfig, config, id}
 }
+
 const expired = "Token is expired"
+
 // Authenticate authorization jwt here doesn't contain prefix bearer
 func (a Authenticator) Authenticate(ctx context.Context, authorization string) (*auth.UserAccount, bool, error) {
 	if len(authorization) == 0 {
