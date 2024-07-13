@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-ldap/ldap/v3"
 	auth "github.com/core-go/authentication"
 )
 
