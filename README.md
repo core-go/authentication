@@ -29,8 +29,6 @@ import "github.com/core-go/authentication"
 
 ## Services
 - Authenticator
-- PrivilegesLoader
-- UserInfoService
 
 ## Token
 - TokenConfig
@@ -47,6 +45,7 @@ import "github.com/core-go/authentication"
 - Azure
 
 ### Repositories
-- ConfigurationRepository
-- OAuth2UserRepository
 - UserRepository
+- PrivilegesRepository
+- OAuth2UserRepository
+- ConfigurationRepository
