@@ -30,6 +30,10 @@ import "github.com/core-go/authentication"
 ## Services
 - Authenticator
 
+## Repositories
+- UserRepository
+- PrivilegesRepository
+
 ## Token
 - TokenConfig
 - TokenGenerator
@@ -46,6 +50,5 @@ import "github.com/core-go/authentication"
 
 ### Repositories
 - UserRepository
-- PrivilegesRepository
 - OAuth2UserRepository
 - ConfigurationRepository
