@@ -44,18 +44,18 @@ func NewBasicAuthenticatorWithTwoFactors(status Status, check func(context.Conte
 		maxPasswordFailed = options[1]
 	}
 	service := &Authenticator{
-		Status:         status,
-		PayloadConfig:  payloadConfig,
-		Check:          check,
-		Repository:     userInfoService,
-		Privileges:     loadPrivileges,
-		GenerateToken:  generateToken,
-		TokenConfig:    tokenConfig,
-		CodeExpires:    codeExpires,
-		CodeRepository: codeService,
-		SendCode:       sendCode,
-		GenerateCode:   generate,
-		LockedMinutes:  lockedMinutes,
+		Status:            status,
+		PayloadConfig:     payloadConfig,
+		Check:             check,
+		Repository:        userInfoService,
+		Privileges:        loadPrivileges,
+		GenerateToken:     generateToken,
+		TokenConfig:       tokenConfig,
+		CodeExpires:       codeExpires,
+		CodeRepository:    codeService,
+		SendCode:          sendCode,
+		GenerateCode:      generate,
+		LockedMinutes:     lockedMinutes,
 		MaxPasswordFailed: maxPasswordFailed,
 	}
 	return service
@@ -348,7 +348,7 @@ func UserAccountToPayload(ctx context.Context, u *UserAccount, s PayloadConfig) 
 		payload[s.Contact] = u.Contact
 		u.Contact = nil
 	}
-	if s.UserType != "" && u.Type != nil{
+	if s.UserType != "" && u.Type != nil {
 		payload[s.UserType] = u.Type
 		u.Type = nil
 	}
@@ -371,6 +371,9 @@ func ToPayload(ctx context.Context, user *UserInfo, s PayloadConfig) map[string]
 	}
 	if len(s.Id) > 0 && len(user.Id) > 0 {
 		payload[s.Id] = user.Id
+	}
+	if len(s.Lang) > 0 && user.Language != nil {
+		payload[s.Lang] = user.Language
 	}
 	if len(s.Username) > 0 && len(user.Username) > 0 {
 		payload[s.Username] = user.Username
