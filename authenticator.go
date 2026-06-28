@@ -132,6 +132,7 @@ func (s *Authenticator) Authenticate(ctx context.Context, info AuthInfo) (AuthRe
 			}
 			account := UserAccount{}
 			account.Token = token
+			result.Token = token
 			result.Status = s.Status.Success
 			result.User = &account
 			account.TokenExpiredTime = &tokenExpiredTime
