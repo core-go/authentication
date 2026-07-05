@@ -10,25 +10,22 @@ import (
 
 type Authenticator struct {
 	Status             Status
-	PayloadConfig      PayloadConfig
 	Repository         UserRepository
 	Check              func(ctx context.Context, user AuthInfo) (AuthResult, error)
 	PasswordComparator ValueComparator
 	Privileges         func(ctx context.Context, id string) ([]Privilege, error)
 	LockedMinutes      int
 	MaxPasswordFailed  int
-	GenerateToken      func(payload interface{}, secret string, expiresIn int64) (string, error)
-	TokenConfig        TokenConfig
 	CodeExpires        int64
 	CodeRepository     CodeRepository
 	SendCode           func(ctx context.Context, to string, code string, expireAt time.Time, params interface{}) error
 	GenerateCode       func() string
 }
 
-func NewBasicAuthenticator(status Status, check func(context.Context, AuthInfo) (AuthResult, error), userInfoService UserRepository, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, loadPrivileges func(context.Context, string) ([]Privilege, error), options ...int) *Authenticator {
-	return NewBasicAuthenticatorWithTwoFactors(status, check, userInfoService, generateToken, tokenConfig, payloadConfig, loadPrivileges, nil, nil, 0, nil, options...)
+func NewBasicAuthenticator(status Status, check func(context.Context, AuthInfo) (AuthResult, error), userInfoService UserRepository, loadPrivileges func(context.Context, string) ([]Privilege, error), options ...int) *Authenticator {
+	return NewBasicAuthenticatorWithTwoFactors(status, check, userInfoService, loadPrivileges, nil, nil, 0, nil, options...)
 }
-func NewBasicAuthenticatorWithTwoFactors(status Status, check func(context.Context, AuthInfo) (AuthResult, error), userInfoService UserRepository, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, loadPrivileges func(context.Context, string) ([]Privilege, error), sendCode func(context.Context, string, string, time.Time, interface{}) error, codeService CodeRepository, codeExpires int64, generate func() string, options ...int) *Authenticator {
+func NewBasicAuthenticatorWithTwoFactors(status Status, check func(context.Context, AuthInfo) (AuthResult, error), userInfoService UserRepository, loadPrivileges func(context.Context, string) ([]Privilege, error), sendCode func(context.Context, string, string, time.Time, interface{}) error, codeService CodeRepository, codeExpires int64, generate func() string, options ...int) *Authenticator {
 	if check == nil {
 		panic(errors.New("basic check cannot be nil"))
 	}
@@ -45,12 +42,9 @@ func NewBasicAuthenticatorWithTwoFactors(status Status, check func(context.Conte
 	}
 	service := &Authenticator{
 		Status:            status,
-		PayloadConfig:     payloadConfig,
 		Check:             check,
 		Repository:        userInfoService,
 		Privileges:        loadPrivileges,
-		GenerateToken:     generateToken,
-		TokenConfig:       tokenConfig,
 		CodeExpires:       codeExpires,
 		CodeRepository:    codeService,
 		SendCode:          sendCode,
@@ -60,14 +54,14 @@ func NewBasicAuthenticatorWithTwoFactors(status Status, check func(context.Conte
 	}
 	return service
 }
-func NewAuthenticator(status Status, userRepository UserRepository, passwordComparator ValueComparator, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, options ...func(context.Context, string) ([]Privilege, error)) *Authenticator {
+func NewAuthenticator(status Status, userRepository UserRepository, passwordComparator ValueComparator, options ...func(context.Context, string) ([]Privilege, error)) *Authenticator {
 	var loadPrivileges func(context.Context, string) ([]Privilege, error)
 	if len(options) >= 1 {
 		loadPrivileges = options[0]
 	}
-	return NewAuthenticatorWithTwoFactors(status, userRepository, passwordComparator, generateToken, tokenConfig, payloadConfig, loadPrivileges, nil, nil, 0, nil)
+	return NewAuthenticatorWithTwoFactors(status, userRepository, passwordComparator, loadPrivileges, nil, nil, 0, nil)
 }
-func NewAuthenticatorWithTwoFactors(status Status, userRepository UserRepository, passwordComparator ValueComparator, generateToken func(interface{}, string, int64) (string, error), tokenConfig TokenConfig, payloadConfig PayloadConfig, loadPrivileges func(context.Context, string) ([]Privilege, error), sendCode func(context.Context, string, string, time.Time, interface{}) error, codeService CodeRepository, codeExpires int64, options ...func() string) *Authenticator {
+func NewAuthenticatorWithTwoFactors(status Status, userRepository UserRepository, passwordComparator ValueComparator, loadPrivileges func(context.Context, string) ([]Privilege, error), sendCode func(context.Context, string, string, time.Time, interface{}) error, codeService CodeRepository, codeExpires int64, options ...func() string) *Authenticator {
 	if passwordComparator == nil {
 		panic(errors.New("password comparator cannot be nil"))
 	}
@@ -80,13 +74,10 @@ func NewAuthenticatorWithTwoFactors(status Status, userRepository UserRepository
 	}
 	service := &Authenticator{
 		Status:             status,
-		PayloadConfig:      payloadConfig,
 		Check:              nil,
 		Repository:         userRepository,
 		PasswordComparator: passwordComparator,
 		Privileges:         loadPrivileges,
-		GenerateToken:      generateToken,
-		TokenConfig:        tokenConfig,
 		CodeExpires:        codeExpires,
 		CodeRepository:     codeService,
 		SendCode:           sendCode,
@@ -112,30 +103,9 @@ func (s *Authenticator) Authenticate(ctx context.Context, info AuthInfo) (AuthRe
 			return result, er0
 		}
 		if s.Repository == nil {
-			var tokenExpiredTime = time.Now().Add(time.Second * time.Duration(int(s.TokenConfig.Expires/1000)))
-			var payload map[string]interface{}
-			if result.User == nil {
-				payload = make(map[string]interface{})
-				if len(s.PayloadConfig.Id) > 0 {
-					payload[s.PayloadConfig.Id] = info.Username
-				}
-				if len(s.PayloadConfig.Username) > 0 {
-					payload[s.PayloadConfig.Username] = info.Username
-				}
-			} else {
-				u := result.User
-				payload = UserAccountToPayload(ctx, u, s.PayloadConfig)
-			}
-			token, er4 := s.GenerateToken(payload, s.TokenConfig.Secret, s.TokenConfig.Expires)
-			if er4 != nil {
-				return result, er4
-			}
 			account := UserAccount{}
-			account.Token = token
-			result.Token = token
 			result.Status = s.Status.Success
 			result.User = &account
-			account.TokenExpiredTime = &tokenExpiredTime
 			return result, nil
 		}
 	}
@@ -248,14 +218,6 @@ func (s *Authenticator) Authenticate(ctx context.Context, info AuthInfo) (AuthRe
 		}
 	}
 
-	tokenExpiredTime, jwtTokenExpires := SetTokenExpiredTime(user.AccessTimeFrom, user.AccessTimeTo, s.TokenConfig.Expires)
-	//tokenExpiredTime, jwtTokenExpires := s.setTokenExpiredTime(*user)
-	payload := ToPayload(ctx, user, s.PayloadConfig)
-	//payload := StoredUser{Id: user.Id, Username: user.Username, Contact: user.Contact, Type: user.Type, Roles: user.Roles, Privileges: user.Privileges}
-	token, er4 := s.GenerateToken(payload, s.TokenConfig.Secret, jwtTokenExpires)
-	if er4 != nil {
-		return result, er4
-	}
 	de := user.Deactivated
 	if de != nil && *de == true {
 		result.Status = s.Status.SuccessAndReactivated
@@ -264,8 +226,6 @@ func (s *Authenticator) Authenticate(ctx context.Context, info AuthInfo) (AuthRe
 	}
 
 	account := mapUserInfoToUserAccount(*user)
-	account.Token = token
-	account.TokenExpiredTime = &tokenExpiredTime
 	if s.Privileges != nil {
 		privileges, er5 := s.Privileges(ctx, user.Id)
 		if er5 != nil {
