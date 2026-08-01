@@ -339,7 +339,6 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 				}
 				host = strings.TrimPrefix(u.Hostname(), "www.")
 			}
-			expired := time.Now()
 			ip := getForwardedRemoteIp(r)
 			if len(ip) == 0 {
 				ip = getRemoteIp(r)
@@ -437,8 +436,8 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 					HttpOnly: true,
 					Path:     "/",
 					MaxAge:   0,
-					Expires:  expired,
-					SameSite: h.SameSite,
+					Expires:  time.Now().Add(30 * time.Minute),
+					SameSite: http.SameSiteStrictMode,
 					Secure:   true,
 				})
 				http.SetCookie(w, &http.Cookie{
@@ -448,8 +447,8 @@ func (h *AuthenticationHandler) Authenticate(w http.ResponseWriter, r *http.Requ
 					HttpOnly: true,
 					Path:     "/",
 					MaxAge:   0,
-					Expires:  expired,
-					SameSite: h.SameSite,
+					Expires:  time.Now().Add(30 * 24 * time.Hour),
+					SameSite: http.SameSiteStrictMode,
 					Secure:   true,
 				})
 			}
